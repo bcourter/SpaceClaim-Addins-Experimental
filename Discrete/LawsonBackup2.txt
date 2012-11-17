@@ -1,0 +1,878 @@
+using System;
+using System.IO;
+using System.Windows.Forms;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Text;
+using System.Xml;
+using System.Linq;
+using SpaceClaim.Api.V8;
+using SpaceClaim.Api.V8.Extensibility;
+using SpaceClaim.Api.V8.Geometry;
+using SpaceClaim.Api.V8.Modeler;
+using SpaceClaim.Api.V8.Display;
+using SpaceClaim.AddInLibrary;
+using SpaceClaim.Svg;
+using Unfold.Properties;
+using Color = System.Drawing.Color;
+using Application = SpaceClaim.Api.V8.Application;
+
+namespace SpaceClaim.AddIn.Unfold {
+	class CreateFigure8ButtonCapsule : RibbonButtonCapsule {
+		public CreateFigure8ButtonCapsule(RibbonCollectionCapsule parent, ButtonSize buttonSize)
+			: base("Figure8", Resources.CreateFigure8CommandText, null, Resources.CreateFigure8CommandHint, parent, buttonSize) {
+		}
+
+		protected override void OnExecute(Command command, System.Drawing.Rectangle buttonRect) {
+			Window activeWindow = Window.ActiveWindow;
+			Part part = activeWindow.Scene as Part;
+
+			int bandCount = 2;
+			int iSteps = bandCount * 24;
+			int jSteps = 24;
+
+			//double uStep = 2 * Math.PI / iSteps;
+			double vStep = 2 * Math.PI / jSteps;
+			bool swap = false;
+			for (int j = 0; j < jSteps; j++) {
+				double v = 2 * Math.PI * j / jSteps;
+				List<List<Body>> bands = new List<List<Body>>();
+
+				for (int i = 0; i < iSteps; i++) {
+					double u00 = Figure8ParamCurve(v, ((double) i - 0.5) / iSteps);
+					double u10 = Figure8ParamCurve(v, ((double) i + 0.5) / iSteps);
+					double u01 = Figure8ParamCurve(v + vStep, ((double) i - 0.5) / iSteps);
+					double u11 = Figure8ParamCurve(v + vStep, ((double) i + 0.5) / iSteps);
+
+					Point p00 = Figure8(PointUV.Create(u00, v));
+					Point p10 = Figure8(PointUV.Create(u10, v));
+					Point p11 = Figure8(PointUV.Create(u11, v + vStep));
+					Point p01 = Figure8(PointUV.Create(u01, v + vStep));
+
+					Body b0, b1;
+					if ((p00 - p11).Magnitude < (p01 - p10).Magnitude) {
+						b0 = ShapeHelper.CreatePolygon(new Point[] { p00, p10, p11 }, 0);
+						b1 = ShapeHelper.CreatePolygon(new Point[] { p00, p11, p01 }, 0);
+					}
+					else {
+						b0 = ShapeHelper.CreatePolygon(new Point[] { p10, p01, p00 }, 0);
+						b1 = ShapeHelper.CreatePolygon(new Point[] { p10, p11, p01 }, 0);
+					}
+
+					Point pn0 = (new Point[]{
+			                        Figure8(PointUV.Create(u00, v - vStep)), 
+			                        Figure8(PointUV.Create(u10, v - vStep))
+			                    }).Average();
+
+					Point pn1 = (new Point[]{
+			                        Figure8(PointUV.Create(u11, v + 2 * vStep)), 
+			                        Figure8(PointUV.Create(u01, v + 2 * vStep))
+			                    }).Average();
+
+					Direction normal0 = Vector.Cross(p10 - pn0, p00 - pn0).Direction;
+					Direction normal1 = Vector.Cross(p01 - pn1, p11 - pn1).Direction;
+					//Direction normal0 = new List<Face>(b0.Faces)[0].ProjectPoint(p00).Normal;
+					//Direction normal1 = new List<Face>(b1.Faces)[0].ProjectPoint(p00).Normal;
+					double tabAngle = Math.PI / 2;
+					Body tab0 = Tabs.CreateCircularTab(p00, p10, normal0, tabAngle, swap);
+					Body tab1 = Tabs.CreateCircularTab(p11, p01, normal1, tabAngle, !swap);
+
+					swap = !swap;
+
+					b0.Unite(new Body[] { b1, tab0, tab1 });
+					int thisBand = bandCount * i / iSteps;
+					if (thisBand == bands.Count)
+						bands.Add(new List<Body>());
+
+					bands[thisBand].Add(b0);
+				}
+
+				Point c0 = Figure8(PointUV.Create(Math.PI / 2, v));
+				Point c1 = Figure8(PointUV.Create(Math.PI / 2, v + vStep));
+				ShapeHelper.CreateCylinder(c0 - (c1 - c0.Vector).Vector * 3, c1 - (c0 - c1.Vector).Vector * 3, 0.05, part);
+
+				foreach (List<Body> band in bands) {
+					//foreach (Body body in band) {
+					//    try {
+					//        body.Subtract(new Body[] { gapCylinder.Copy() });
+					//    }
+					//    catch { }
+					//}
+
+					ICollection<Body> bodies = band.TryUnionBodies();
+
+					foreach (Body body in bodies)
+						DesignBody.Create(part, "Band", body);
+
+				}
+				//break;
+			}
+
+			activeWindow.ZoomExtents();
+		}
+
+		static double Figure8ParamCurve(double angle, double param) {
+			//	param = param + Math.Pow(Math.Cos(param * 2 * Math.PI) / 4, 2);
+			//	param = param + 0.5;
+
+			return 2 * Math.PI * param;// +angle;
+		}
+
+		static Point Figure8(PointUV uv) {
+			double u = uv.U;
+			double v = uv.V;
+			const double t = 1.5;
+			return Point.Create(
+				Math.Sin(v) * (4 + 2 * Math.Cos(u) * Math.Cos(t * v) - Math.Sin(2 * u) * Math.Sin(t * v)),
+				Math.Cos(v) * (4 + 2 * Math.Cos(u) * Math.Cos(t * v) - Math.Sin(2 * u) * Math.Sin(t * v)),
+				2 * Math.Cos(u) * Math.Sin(t * v) + Math.Sin(2 * u) * Math.Cos(t * v)
+			);
+		}
+	}
+
+	class CreateLawsonButtonCapsule : RibbonButtonCapsule {
+		public CreateLawsonButtonCapsule(RibbonCollectionCapsule parent, ButtonSize buttonSize)
+			: base("Lawson", Resources.CreateLawsonCommandText, null, Resources.CreateLawsonCommandHint, parent, buttonSize) {
+		}
+
+		protected override void OnExecute(Command command, System.Drawing.Rectangle buttonRect) {
+			Window activeWindow = Window.ActiveWindow;
+			Part part = activeWindow.Scene as Part;
+
+			CreateLawson(0.5, 1, Math.PI / 2, Vector.Create(0.5, 0, 0), part);
+
+			activeWindow.SetProjection(Matrix.CreateMapping(Frame.Create(Point.Origin, -Direction.DirY, Direction.DirX)), true, true);
+			activeWindow.ZoomExtents();
+			activeWindow.InteractionMode = InteractionMode.Solid;
+
+			Command.GetCommand("TangentEdge").IsEnabled = true;
+			Command.GetCommand("SolidEdges").IsEnabled = true;
+			Command.GetCommand("TangentEdge").IsChecked = false;
+			Command.GetCommand("SolidEdges").IsChecked = false;
+		}
+
+#if true
+		public static ICollection<DesignBody> CreateLawson(double p, double q, double circleAngle, Vector inverseOffset, Part mainPart) {
+			int iSteps = 24;
+			int jSteps = 48;
+
+			// It's a klein bottle, so the other half is flipped. We need the extra set so the indexing is right in the circular list, even though we won't model the faces twice. Yes, it's redundant, but this is the easiest way to take care of it.
+
+			var vParameters = new CircularList<CircularList<double>>(iSteps * 2);
+			var tabAngles = new CircularList<CircularList<double>>(iSteps * 2);
+			for (int i = 0; i < iSteps * 2; i++) {
+				vParameters.Add(new CircularList<double>(jSteps));
+				tabAngles.Add(new CircularList<double>(jSteps));
+				for (int j = 0; j < jSteps; j++) {
+					vParameters[i].Add(2 * Math.PI * ((double) j - 0.5) / jSteps);
+					tabAngles[i].Add((double) 5 / 6 * Math.PI);
+				}
+			}
+
+			double iteration = 401;
+			var points = new CircularList<CircularList<Point>>(iSteps * 2);
+			bool swap;
+			double vForce = 0.0005;
+			double angleForce = 1;
+			double iAngleForce = 0;// 0.01;
+			double lastCumulativeError = double.MaxValue;
+			while (iteration-- > 0 && lastCumulativeError > 0.001) {
+				var newVParameters = new CircularList<CircularList<double>>(iSteps * 2);
+				var newTabAngles = new CircularList<CircularList<double>>(iSteps * 2);
+
+				for (int i = 0; i < iSteps * 2; i++) {
+					double u = 2 * Math.PI * (double) i / iSteps;
+					newVParameters.Add(new CircularList<double>(jSteps));
+					newTabAngles.Add(new CircularList<double>(jSteps));
+					points[i] = (new CircularList<Point>(jSteps));
+					for (int j = 0; j < jSteps; j++) {
+						points[i][j] = (Lawson.Evaluate(PointUV.Create(vParameters[i][j], u), p, q, circleAngle, inverseOffset, true));
+						Trace.WriteLine(string.Format("{0} {1} {2}", i, j, tabAngles[i][j]));
+
+						newVParameters[i].Add(vParameters[i][j]);
+						newTabAngles[i].Add(tabAngles[i][j]);
+					}
+				}
+
+				double cumulativeErrorTally = 0;
+				for (int i = 0; i < iSteps * 2; i++) {
+					for (int j = 0; j < jSteps; j ++) {
+						swap = j % 2 == 0;
+						int iOther = !swap ? i + 1 : i - 1;
+
+						Circle baseCircle = GetTabFromPoints(tabAngles, points, true, i, j, iOther);
+						Circle circle0 = GetTabFromPoints(tabAngles, points, true, iOther, j - 1, i);
+						Circle circle1 = GetTabFromPoints(tabAngles, points, true, iOther, j + 1, i);
+
+						if (((i == 17 && j == 37) || (i == 17 && j == 38)) && iteration % 4 == 0) {
+							Layer layer = NoteHelper.CreateOrGetLayer(Window.ActiveWindow.Document, string.Format("{0} {1}", iteration, lastCumulativeError), Color.BurlyWood);
+							var desCurve = DesignCurve.Create(Window.ActiveWindow.Scene as Part, CurveSegment.Create(baseCircle));
+							desCurve.Layer = layer;
+							desCurve = DesignCurve.Create(Window.ActiveWindow.Scene as Part, CurveSegment.Create(circle0));
+							desCurve.Layer = layer;
+							desCurve = DesignCurve.Create(Window.ActiveWindow.Scene as Part, CurveSegment.Create(circle1));
+							desCurve.Layer = layer;
+							desCurve = DesignCurve.Create(Window.ActiveWindow.Scene as Part, CurveSegment.Create(circle0.Frame.Origin, baseCircle.Frame.Origin));
+							desCurve.Layer = layer;
+							desCurve = DesignCurve.Create(Window.ActiveWindow.Scene as Part, CurveSegment.Create(circle1.Frame.Origin, baseCircle.Frame.Origin));
+							desCurve.Layer = layer;
+						}
+
+						double distance0 = (baseCircle.Frame.Origin - circle0.Frame.Origin).Magnitude - baseCircle.Radius - circle0.Radius;
+						double distance1 = (baseCircle.Frame.Origin - circle1.Frame.Origin).Magnitude - baseCircle.Radius - circle1.Radius;
+						cumulativeErrorTally += distance0 * distance0 + distance1 * distance1;
+
+						double iAngle = AddInHelper.AngleBetween(
+							circle0.Frame.Origin - baseCircle.Frame.Origin,
+							circle1.Frame.Origin - baseCircle.Frame.Origin
+						);
+						double angleOffset = (Math.PI / 2 - Math.Abs(iAngle)) * iAngleForce;
+
+						newTabAngles[i][j] -= (distance0 + distance1) / 2 * angleForce + angleOffset;
+						newTabAngles[i][j] = Math.Max(Math.PI / 12, newTabAngles[i][j]);
+						newTabAngles[i][j] = Math.Min(Math.PI, newTabAngles[i][j]);
+
+						double vOffset = (distance1 - distance0) * vForce;
+						double[] dontOptimize = new double[] { 0, 1, jSteps / 2, jSteps / 2 + 1 };
+
+						if (!dontOptimize.Contains(j)) {
+							newVParameters[i][j] += vOffset;
+							newVParameters[i][j] += angleOffset/10;
+						}
+
+						if (!dontOptimize.Contains(j + 1)) {
+							newVParameters[i][j + 1] += vOffset; //was +
+							newVParameters[i][j + 1] -= angleOffset/100; 
+						}
+
+					}
+				}
+
+				lastCumulativeError = Math.Sqrt(cumulativeErrorTally / (iSteps * 2 * jSteps * 2));
+				Trace.WriteLine(lastCumulativeError);
+
+				// We're not calculating the points for the last iteration.  Whatevs.
+				vParameters = newVParameters;
+				tabAngles = newTabAngles;
+			}
+
+			//		return null;
+
+			// Create the model
+			const double scale = 1; //0.096;
+			var bands = new List<ICollection<Body>>();
+			var cutters = new List<Body[]>();
+			swap = false;
+			for (int i = 0; i < iSteps; i++) {
+				var band = new List<Body>();
+
+				for (int j = 0; j < jSteps; j++) {
+					// Main ring
+					Point p00 = points[i][j];
+					Point p01 = points[i][j + 1];
+					Point p10 = points[i + 1][j];
+					Point p11 = points[i + 1][j + 1];
+
+					Body b0, b1;
+					if ((p00 - p11).Magnitude < (p10 - p01).Magnitude) {
+						b0 = ShapeHelper.CreatePolygon(new Point[] { p00, p01, p11 }, 0);
+						b1 = ShapeHelper.CreatePolygon(new Point[] { p00, p11, p10 }, 0);
+					}
+					else {
+						b0 = ShapeHelper.CreatePolygon(new Point[] { p01, p10, p00 }, 0);
+						b1 = ShapeHelper.CreatePolygon(new Point[] { p01, p11, p10 }, 0);
+					}
+
+					// Tabs
+					/*            Male      Female      Male
+					 * ---p00last-------p00--------p01-------p10next--- v+
+					 *       |           |          |           |
+					 *       |    pn0    |          |    pn1    |
+					 *       |           |          |           |
+					 * ---p10last-------p10--------p11-------p11next---
+					 * 
+					 */
+					Point pn0 = (new Point[] { points[i - 1][j], points[i - 1][j + 1] }).Average();
+					Point pn1 = (new Point[] { points[i + 2][j], points[i + 2][j + 1] }).Average();
+
+					Direction normal0 = Vector.Cross(p01 - pn0, p00 - pn0).Direction;
+					Direction normal1 = Vector.Cross(p10 - pn1, p11 - pn1).Direction;
+
+					Body tab0 = Tabs.CreateCircularTab(p01, p00, -normal0, tabAngles[i][j], swap);
+					Body tab1 = Tabs.CreateCircularTab(p10, p11, -normal1, tabAngles[i + 1][j], !swap);
+
+					//DesignBody.Create(Window.ActiveWindow.Scene as Part, "test", b0.Copy());
+					//DesignBody.Create(Window.ActiveWindow.Scene as Part, "test", b1.Copy());
+					//DesignBody.Create(Window.ActiveWindow.Scene as Part, "test", tab0.Copy());
+					//DesignBody.Create(Window.ActiveWindow.Scene as Part, "test", tab1.Copy());
+
+					try {
+						b0.Unite(new Body[] { b1, tab0, tab1 });
+					}
+					catch {
+						DesignBody.Create(Window.ActiveWindow.Scene as Part, "test", b0.Copy());
+						DesignBody.Create(Window.ActiveWindow.Scene as Part, "test", b1.Copy());
+						DesignBody.Create(Window.ActiveWindow.Scene as Part, "test", tab0.Copy());
+						DesignBody.Create(Window.ActiveWindow.Scene as Part, "test", tab1.Copy());
+						return null;
+					}
+
+				//	Debug.Assert(b0.Shells.Count == 1);
+					band.Add(b0);
+
+					swap = !swap;
+				}
+
+				bands.Add(band.TryUnionBodies());
+
+				// Cutters
+				Point p0ThisSide0 = points[i][0];
+				Point p0ThisSide1 = points[i][1];
+				Point p0OtherSide0 = points[i + iSteps / 2][jSteps / 2];
+				Point p0OtherSide1 = points[i + iSteps / 2][1 + jSteps / 2];
+
+				Point p1ThisSide0 = points[i + 1][0];
+				Point p1ThisSide1 = points[i + 1][1];
+				Point p1OtherSide0 = points[i + 1 + iSteps / 2][jSteps / 2];
+				Point p1OtherSide1 = points[i + 1 + iSteps / 2][1 + jSteps / 2];
+
+				Point p0 = CurveSegment.Create(p0ThisSide0, p0ThisSide1).GetInBetweenPoint(
+					CurveSegment.Create(p0OtherSide0, p0OtherSide1
+				));
+
+				Point p1 = CurveSegment.Create(p1ThisSide0, p1ThisSide1).GetInBetweenPoint(
+					CurveSegment.Create(p1OtherSide0, p1OtherSide1
+				));
+
+				//Point p0 = CurveSegment.Create(p0ThisSide0, p0ThisSide1).IntersectCurve(
+				//    CurveSegment.Create(p0OtherSide0, p0OtherSide1
+				//)).First().Point;
+
+				//Point p1 = CurveSegment.Create(p1ThisSide0, p1ThisSide1).IntersectCurve(
+				//    CurveSegment.Create(p1OtherSide0, p1OtherSide1
+				//)).First().Point;
+
+				Direction n0 = (p0OtherSide1 - p0OtherSide0).Direction;
+				Direction n1 = (p1OtherSide1 - p1OtherSide0).Direction;
+
+				Direction d0 = (p0ThisSide1 - p0ThisSide0).Direction;
+				Direction d1 = (p1ThisSide1 - p1ThisSide0).Direction;
+
+				double height = 0.004 / scale;
+				double width = 0.0005 / scale;
+
+				var profiles = new List<ICollection<ITrimmedCurve>>();
+				profiles.Add(p0.GetRectanglePointsAround(d0 * height, n0 * width).GetProfile());
+				profiles.Add(p1.GetRectanglePointsAround(d1 * height, n1 * width).GetProfile());
+				Body cutterA = Body.LoftProfiles(profiles, false, true);
+
+				profiles = new List<ICollection<ITrimmedCurve>>();
+				profiles.Add(p0.GetRectanglePointsAround(n0 * height, d0 * width).GetProfile());
+				profiles.Add(p1.GetRectanglePointsAround(n1 * height, d1 * width).GetProfile());
+				Body cutterB = Body.LoftProfiles(profiles, false, true);
+
+				cutters.Add(new Body[] { cutterA, cutterB });
+			}
+
+			var designBands = new List<DesignBody>();
+			Layer cutterLayer = NoteHelper.CreateOrGetLayer(mainPart.Document, "Cutters", System.Drawing.Color.DarkViolet);
+			Matrix scaleMatrix = Matrix.CreateScale(scale, Point.Origin);
+
+			for (int i = 0; i < bands.Count; i++) {
+				int whichCutter = i % 2;
+
+				Part part = Part.Create(mainPart, string.Format("Band {0:00}", i));
+				Component.Create(mainPart, part);
+
+				int ii = i;
+				if (whichCutter == 0)
+					ii = i + iSteps / 2;
+
+				List<Body> mergedCutters = new Body[] {
+                    cutters[(ii + iSteps - 1) % iSteps][whichCutter].Copy(),
+                    cutters[ii % iSteps][whichCutter].Copy(),
+                    cutters[(ii + 1) % iSteps][whichCutter].Copy()
+                }.TryUnionBodies().ToList();
+
+				Debug.Assert(mergedCutters.Count == 1);
+
+				mergedCutters.Add(cutters[(ii - 1 + iSteps / 2) % iSteps][1 - whichCutter].Copy());
+				mergedCutters.Add(cutters[(ii + 1 + iSteps / 2) % iSteps][1 - whichCutter].Copy());
+
+				HSBColor hsbColor = new HSBColor(0, 100, 200);
+				hsbColor.H = (float) ((double) i / bands.Count * 360);
+
+				var cutBand = new List<Body>();
+				foreach (Body body in bands[i]) {
+					foreach (Body cutterBody in mergedCutters) {
+						body.Imprint(cutterBody);
+						foreach (Face face in body.Faces) {
+							if (!IsSpanningBody(face, cutterBody))
+								continue;
+
+							body.DeleteFaces(new Face[] { face }, RepairAction.None);
+							//	DesignBody designBody = DesignBody.Create(part, "Cutter", cutterBody.Copy());
+							//	designBody.SetColor(null, hsbColor.Color);
+						}
+					}
+
+					cutBand.AddRange(body.SeparatePieces());
+				}
+
+				cutBand = cutBand.TryUnionBodies().ToList();
+
+				//foreach (Body body in bands[i]) {
+				foreach (Body body in cutBand) {
+					body.Transform(scaleMatrix);
+					DesignBody designBody = DesignBody.Create(part, "Band", body);
+					designBody.SetColor(null, hsbColor.Color);
+					designBands.Add(designBody);
+				}
+
+				//foreach (Body body in mergedCutters) {
+				//    DesignBody designBody = DesignBody.Create(part, "Cutter", body);
+				//    designBody.Layer = cutterLayer;
+				//    hsbColor.H += 180 * whichCutter;
+				//    designBody.SetColor(null, hsbColor.Color);
+				////	designBands[i].Shape.Imprint(designBody.Shape);
+				//}
+
+			}
+
+			return designBands;
+		}
+
+		private static Circle GetTabFromPoints(CircularList<CircularList<double>> tabAngles, CircularList<CircularList<Point>> points, bool swap, int i, int j, int iOther) {
+			Point p0 = points[i][j];
+			Point p1 = points[i][j + 1];
+			Point pn = (new Point[] { points[iOther][j], points[iOther][j + 1] }).Average();
+			Direction normal = Vector.Cross(p0 - pn, p1 - pn).Direction;
+			return Tabs.GetCircularTabCircle(p0, p1, normal, tabAngles[i][j], swap);
+		}
+
+		static bool IsSpanningBody(Face face, Body body) {
+			foreach (Point point in face.Loops.SelectMany(l => l.Fins).Select(f => f.TrueStartPoint())) {
+				if (!body.ContainsPoint(point))
+					return false;
+			}
+
+			//if (!body.ContainsPoint(face.Geometry.Evaluate(face.BoxUV.Center).Point))
+			//	return false;
+
+			//foreach (Point point in face.Loops.SelectMany(l => l.Fins).Select(f => f.TrueStartPoint())) {
+			//    if ((body.ProjectPoint(point) - point).Magnitude > Accuracy.LinearResolution * 100)
+			//        return false;
+			//}
+
+			return true;
+		}
+#elif true // unoptimized tabs
+		public static ICollection<DesignBody> CreateLawson(double p, double q, double circleAngle, Vector inverseOffset, Part mainPart) {
+			int iSteps = 24;
+			int jSteps = 48;
+
+			var pp = new CircularList<CircularList<Point>>(iSteps * 2);  // It's a klein bottle, so the other half is flipped
+			for (int i = 0; i < iSteps * 2; i++) {  
+				double u = 2 * Math.PI * (double) i / iSteps;
+				pp.Add(new CircularList<Point>(jSteps));
+				for (int j = 0; j < jSteps; j++) {
+					double v = 2 * Math.PI * ((double) j - 0.5) / jSteps;
+					pp[i].Add(Lawson.Evaluate(PointUV.Create(v, u), p, q, circleAngle, inverseOffset, true));
+				}
+			}
+
+			//foreach (CircularList<Point> points in pp) {
+			//    foreach (Point point in points)
+			//        DesignCurve.Create(mainPart, CurveSegment.Create(PointCurve.Create(point)));
+			//}
+			//return null;
+
+			const double scale = 0.096;
+			var bands = new List<ICollection<Body>>();
+			var cutters = new List<Body[]>();
+
+			double uStep = 2 * Math.PI / iSteps;
+			double vStep = 2 * Math.PI / jSteps;
+			bool swap = false;
+			bool isInverted = true;
+			for (int i = 0; i < iSteps; i++) {
+				double u = 2 * Math.PI * i / iSteps;
+				var band = new List<Body>();
+
+				Point p00 = Point.Origin, p01 = Point.Origin, p10 = Point.Origin, p11 = Point.Origin;
+				Direction n0, n1;
+				for (int j = 0; j < jSteps; j++) {
+					// Main ring
+					double v = 2 * Math.PI * ((double) j - 0.5) / jSteps;
+
+					p00 = pp[i][j];
+					p10 = pp[i][j + 1];
+					p11 = pp[i + 1][j + 1];
+					p01 = pp[i + 1][j];
+
+					Body b0, b1;
+					if ((p00 - p11).Magnitude < (p01 - p10).Magnitude) {
+						b0 = ShapeHelper.CreatePolygon(new Point[] { p00, p10, p11 }, 0);
+						b1 = ShapeHelper.CreatePolygon(new Point[] { p00, p11, p01 }, 0);
+					}
+					else {
+						b0 = ShapeHelper.CreatePolygon(new Point[] { p10, p01, p00 }, 0);
+						b1 = ShapeHelper.CreatePolygon(new Point[] { p10, p11, p01 }, 0);
+					}
+
+					// Tabs
+					/*            Male      Female      Male
+					 * ---p00last-------p00--------p10-------p10next---
+					 *       |           |          |           |
+					 *       |    pn0    |          |    pn1    |
+					 *       |           |          |           |
+					 * ---p10last-------p01--------p11-------p11next---
+					 * 
+					 */
+					Point pn0 = (new Point[]{
+                        Lawson.Evaluate(PointUV.Create(v, u - uStep), p, q, circleAngle, inverseOffset, isInverted), 
+                        Lawson.Evaluate(PointUV.Create(v + vStep, u - uStep), p, q, circleAngle, inverseOffset, isInverted)
+                    }).Average();
+
+					Point pn1 = (new Point[]{
+                        Lawson.Evaluate(PointUV.Create(v, u + 2 * uStep), p, q, circleAngle, inverseOffset, isInverted), 
+                        Lawson.Evaluate(PointUV.Create(v + vStep, u + 2 * uStep), p, q, circleAngle, inverseOffset, isInverted)
+                    }).Average();
+
+					Direction normal0 = Vector.Cross(p10 - pn0, p00 - pn0).Direction;
+					Direction normal1 = Vector.Cross(p01 - pn1, p11 - pn1).Direction;
+
+					double ratio = (p10-p00).Magnitude / (p11-p01).Magnitude;
+					Circle circle1 = ShapeHelper.CreateCircleThroughPoints(p00, p10, Interpolation.Interpolate(p00, p01, ratio));
+					Circle circle2 = ShapeHelper.CreateCircleThroughPoints(p00, p10, Interpolation.Interpolate(p10, p11, ratio));
+
+					double radius = (circle1.Radius + circle2.Radius) / 2;
+					double tabAngle = 4 * Math.Sin((p10 - p00).Magnitude / 2 / radius);
+
+					Body tab0 = Tabs.CreateCircularTab(p00, p10, normal0, tabAngle, swap);
+					Body tab1 = Tabs.CreateCircularTab(p11, p01, normal1, tabAngle, !swap);
+
+					//// 50, 700
+					//double l0 = (p10 - p00).Magnitude;
+					//double l1 = (p01 - p11).Magnitude;
+					//double lmin = 0.05;
+					//double lmax = 0.7;
+
+					//const double tabAngleVariance = Math.PI / 4;
+					//double tabAngle = Math.PI * 2 / 3;
+					//double f0 = ((l0 - lmin) / (lmax - lmin) - 0.5) * tabAngleVariance;
+					//double f1 = ((l1 - lmin) / (lmax - lmin) - 0.5) * tabAngleVariance;
+
+					//Body tab0 = Tabs.CreateCircularTab(p00, p10, normal0, tabAngle + f0, swap);
+					//Body tab1 = Tabs.CreateCircularTab(p11, p01, normal1, tabAngle + f1, !swap);
+
+					b0.Unite(new Body[] { b1, tab0, tab1 });
+					Debug.Assert(b0.Shells.Count == 1);
+					band.Add(b0);
+
+					swap = !swap;
+				}
+
+				bands.Add(band.TryUnionBodies());
+
+				// Cutters
+				double vv = 0;
+
+
+
+				Point p0ThisSide0 = Lawson.Evaluate(PointUV.Create(vv + vStep / 2, u), p, q, circleAngle, inverseOffset, isInverted);
+				Point p0ThisSide1 = Lawson.Evaluate(PointUV.Create(vv - vStep / 2, u), p, q, circleAngle, inverseOffset, isInverted);
+				Point p0OtherSide0 = Lawson.Evaluate(PointUV.Create(vv + vStep / 2 + Math.PI, u + Math.PI), p, q, circleAngle, inverseOffset, isInverted);
+				Point p0OtherSide1 = Lawson.Evaluate(PointUV.Create(vv - vStep / 2 + Math.PI, u + Math.PI), p, q, circleAngle, inverseOffset, isInverted);
+
+				Point p1ThisSide0 = Lawson.Evaluate(PointUV.Create(vv + vStep / 2, u + uStep), p, q, circleAngle, inverseOffset, isInverted);
+				Point p1ThisSide1 = Lawson.Evaluate(PointUV.Create(vv - vStep / 2, u + uStep), p, q, circleAngle, inverseOffset, isInverted);
+				Point p1OtherSide0 = Lawson.Evaluate(PointUV.Create(vv + vStep / 2 + Math.PI, u + uStep + Math.PI), p, q, circleAngle, inverseOffset, isInverted);
+				Point p1OtherSide1 = Lawson.Evaluate(PointUV.Create(vv - vStep / 2 + Math.PI, u + uStep + Math.PI), p, q, circleAngle, inverseOffset, isInverted);
+
+				p00 = CurveSegment.Create(p0ThisSide0, p0ThisSide1).IntersectCurve(
+					CurveSegment.Create(p0OtherSide0, p0OtherSide1
+				)).First().Point;
+
+				p01 = CurveSegment.Create(p1ThisSide0, p1ThisSide1).IntersectCurve(
+					CurveSegment.Create(p1OtherSide0, p1OtherSide1
+				)).First().Point;
+
+
+				//p00 = Lawson.Evaluate(PointUV.Create(vv, u), p, q, circleAngle, inverseOffset, isInverted);
+				//p01 = Lawson.Evaluate(PointUV.Create(vv, u + uStep), p, q, circleAngle, inverseOffset, isInverted);
+
+				//n0 = Lawson.GetNormal(PointUV.Create(vv, u), p, q, circleAngle, inverseOffset, isInverted);
+				//n1 = Lawson.GetNormal(PointUV.Create(vv, u + uStep), p, q, circleAngle, inverseOffset, isInverted);
+
+				n0 = (p0OtherSide1 - p0OtherSide0).Direction;
+				n1 = (p1OtherSide1 - p1OtherSide0).Direction;
+
+				Direction d0 = (p0ThisSide1 - p0ThisSide0).Direction;
+				Direction d1 = (p1ThisSide1 - p1ThisSide0).Direction;
+
+				double height = 0.004 / scale;
+				double width = 0.0005 / scale;
+
+				var profiles = new List<ICollection<ITrimmedCurve>>();
+				profiles.Add(p00.GetRectanglePointsAround(d0 * height, n0 * width).GetProfile());
+				profiles.Add(p01.GetRectanglePointsAround(d1 * height, n1 * width).GetProfile());
+				Body cutterA = Body.LoftProfiles(profiles, false, true);
+
+				profiles = new List<ICollection<ITrimmedCurve>>();
+				profiles.Add(p00.GetRectanglePointsAround(n0 * height, d0 * width).GetProfile());
+				profiles.Add(p01.GetRectanglePointsAround(n1 * height, d1 * width).GetProfile());
+				Body cutterB = Body.LoftProfiles(profiles, false, true);
+
+				cutters.Add(new Body[] { cutterA, cutterB });
+			}
+
+			var designBands = new List<DesignBody>();
+			Layer cutterLayer = NoteHelper.CreateOrGetLayer(mainPart.Document, "Cutters", System.Drawing.Color.DarkViolet);
+			Matrix scaleMatrix = Matrix.CreateScale(scale, Point.Origin);
+
+			for (int i = 0; i < bands.Count; i++) {
+				int whichCutter = i % 2;
+
+				Part part = Part.Create(mainPart, string.Format("Band {0:00}", i));
+				Component.Create(mainPart, part);
+
+				int ii = i;
+				if (whichCutter == 0)
+					ii = i + iSteps / 2;
+
+				List<Body> mergedCutters = new Body[] {
+                    cutters[(ii + iSteps - 1) % iSteps][whichCutter].Copy(),
+                    cutters[ii % iSteps][whichCutter].Copy(),
+                    cutters[(ii + 1) % iSteps][whichCutter].Copy()
+                }.TryUnionBodies().ToList();
+
+				Debug.Assert(mergedCutters.Count == 1);
+
+				mergedCutters.Add(cutters[(ii - 1 + iSteps / 2) % iSteps][1 - whichCutter].Copy());
+				mergedCutters.Add(cutters[(ii + 1 + iSteps / 2) % iSteps][1 - whichCutter].Copy());
+
+				HSBColor hsbColor = new HSBColor(0, 100, 200);
+				hsbColor.H = (float) ((double) i / bands.Count * 360);
+
+				var cutBand = new List<Body>();
+				foreach (Body body in bands[i]) {
+					foreach (Body cutterBody in mergedCutters) {
+						body.Imprint(cutterBody);
+						foreach (Face face in body.Faces) {
+							if (!IsSpanningBody(face, cutterBody))
+								continue;
+
+							body.DeleteFaces(new Face[] { face }, RepairAction.None);
+							//	DesignBody designBody = DesignBody.Create(part, "Cutter", cutterBody.Copy());
+							//	designBody.SetColor(null, hsbColor.Color);
+						}
+					}
+
+					cutBand.AddRange(body.SeparatePieces());
+				}
+
+				cutBand = cutBand.TryUnionBodies().ToList();
+
+				//foreach (Body body in bands[i]) {
+				foreach (Body body in cutBand) {
+					body.Transform(scaleMatrix);
+					DesignBody designBody = DesignBody.Create(part, "Band", body);
+					designBody.SetColor(null, hsbColor.Color);
+					designBands.Add(designBody);
+				}
+
+				//foreach (Body body in mergedCutters) {
+				//    DesignBody designBody = DesignBody.Create(part, "Cutter", body);
+				//    designBody.Layer = cutterLayer;
+				//    hsbColor.H += 180 * whichCutter;
+				//    designBody.SetColor(null, hsbColor.Color);
+				////	designBands[i].Shape.Imprint(designBody.Shape);
+				//}
+
+			}
+
+			return designBands;
+		}
+
+		static bool IsSpanningBody(Face face, Body body) {
+			foreach (Point point in face.Loops.SelectMany(l => l.Fins).Select(f => f.TrueStartPoint())) {
+				if (!body.ContainsPoint(point))
+					return false;
+			}
+
+			//if (!body.ContainsPoint(face.Geometry.Evaluate(face.BoxUV.Center).Point))
+			//	return false;
+
+			//foreach (Point point in face.Loops.SelectMany(l => l.Fins).Select(f => f.TrueStartPoint())) {
+			//    if ((body.ProjectPoint(point) - point).Magnitude > Accuracy.LinearResolution * 100)
+			//        return false;
+			//}
+
+			return true;
+		}
+#else // no tabs
+        static ICollection<IDesignBody> CreateLawson(double p, double q, double circleAngle, Vector inverseOffset, Part part) {
+            List<IDesignBody> iDesignBodies = new List<IDesignBody>();
+
+            int bandCount = 2;
+            int iSteps = bandCount * 32;
+            int jSteps = 34;
+            double uStep = 2 * Math.PI / iSteps;
+            double vStep = 2 * Math.PI / jSteps;
+            bool uSwap = false, vSwap = false;
+            for (int j = 0; j < jSteps; j++) {
+                double v = 2 * Math.PI * j / jSteps;
+
+                for (int i = 0; i < iSteps; i++) {
+                    double u = 2 * Math.PI * i / iSteps;
+
+                    Point p00 = Lawson.Evaluate(PointUV.Create(u, v), p, q, circleAngle, inverseOffset);
+                    Point p10 = Lawson.Evaluate(PointUV.Create(u + uStep, v), p, q, circleAngle, inverseOffset);
+                    Point p11 = Lawson.Evaluate(PointUV.Create(u + uStep, v + vStep), p, q, circleAngle, inverseOffset);
+                    Point p01 = Lawson.Evaluate(PointUV.Create(u, v + vStep), p, q, circleAngle, inverseOffset);
+
+                    Body b0, b1;
+                    if ((p00 - p11).Magnitude < (p01 - p10).Magnitude) {
+                        b0 = ShapeHelper.CreatePolygon(new Point[] { p00, p10, p11 }, 0);
+                        b1 = ShapeHelper.CreatePolygon(new Point[] { p00, p11, p01 }, 0);
+                    }
+                    else {
+                        b0 = ShapeHelper.CreatePolygon(new Point[] { p10, p01, p00 }, 0);
+                        b1 = ShapeHelper.CreatePolygon(new Point[] { p10, p11, p01 }, 0);
+                    }
+
+                    if (b0 == null || b1 == null)
+                        continue;
+
+                    try {
+                        b0.Unite(new Body[] { b1 });
+                    }
+                    catch { }
+
+                    DesignBody designBody = DesignBody.Create(part, "4 Face", b0);
+                    //DesignBody.Create(part, "4 Face", b1);
+
+                    if (vSwap)
+                        designBody.Style = BodyStyle.Opaque;
+
+                    HSBColor hsbColor = new HSBColor(designBody.GetVisibleColor());
+                    hsbColor.H = (float)(u / 2 / Math.PI * 360);
+                    designBody.SetColor(null, hsbColor.Color);
+                    iDesignBodies.Add(designBody);
+
+                    uSwap = !uSwap;
+                }
+                vSwap = !vSwap;
+            }
+
+            return iDesignBodies;
+		}
+#endif
+	}
+
+
+	class CreateAnimateButtonCapsule : RibbonButtonCapsule {
+		public CreateAnimateButtonCapsule(RibbonCollectionCapsule parent, ButtonSize buttonSize)
+			: base("Animate", Resources.CreateAnimateCommandText, null, Resources.CreateAnimateCommandHint, parent, buttonSize) {
+		}
+
+		protected override void OnExecute(Command command, System.Drawing.Rectangle buttonRect) {
+			//Debug.Assert(false, string.Format("{0}\n{1}, {2}, {3}",
+			//    Window.ActiveWindow.Projection.Scale,
+			//    Window.ActiveWindow.Projection.Translation.X,
+			//    Window.ActiveWindow.Projection.Translation.Y,
+			//    Window.ActiveWindow.Projection.Translation.Z
+			//    ));
+
+			string path = @"C:\Users\bcr.SPACECLAIM\Documents\Models\Klein - AnimateZ\frame";
+			Directory.CreateDirectory(Path.GetDirectoryName(path));
+
+			double p = 0.5;
+			double q = 1;
+			double circleAngle = Math.PI / 2;
+			//Vector inverseOffset = Vector.Create(0.5, 0, 0);
+
+			int frames = 10;
+			for (int i = 0; i <= frames; i++) {
+				Vector inverseOffset = Vector.Create(0.5, (double) 2 * i / frames, 0);
+
+				//Window activeWindow = Document.Create();
+				Window activeWindow = Window.ActiveWindow;
+				Part part = activeWindow.Scene as Part;
+
+				ICollection<DesignBody> designBodies = CreateLawsonButtonCapsule.CreateLawson(p, q, circleAngle, inverseOffset, part);
+
+				//Matrix scale = Matrix.CreateScale(0.202587851705985, Point.Origin);
+				//Matrix translation = Matrix.CreateTranslation(Vector.Create(-0.00153609831029143, 0.0463603948983222, 0));
+				//Matrix rotation = Matrix.CreateMapping(Frame.Create(Point.Origin, -Direction.DirY, Direction.DirX));
+
+				//activeWindow.SetProjection(rotation * scale * translation, true, false);
+				activeWindow.InteractionMode = InteractionMode.Solid;
+				//System.Threading.Thread.Sleep(1000);
+
+				activeWindow.Document.SaveAs(path + string.Format("-{0:000}.scdoc", i));
+				activeWindow.Export(WindowExportFormat.Png, path + string.Format("-{0:000}.png", i));
+
+				//activeWindow.Close();
+				foreach (DesignBody designBody in designBodies)
+					designBody.Delete();
+			}
+		}
+	}
+
+
+}
+
+static class Tabs {
+	public static Body CreateCircularTab(Point p0, Point p1, Direction normal, double angle, bool isMale) {
+		Circle circle = GetCircularTabCircle(p0, p1, normal, angle, isMale);
+
+		double centerParam = Math.PI / 2;
+		if (!isMale) {
+			angle *= -1;
+			centerParam += Math.PI;
+		}
+
+		ITrimmedCurve circleSegment = CurveSegment.Create(circle, Interval.Create(centerParam - angle / 2, centerParam + angle / 2));
+		ITrimmedCurve lineSegment = CurveSegment.Create(p0, p1);
+
+		//DesignCurve.Create(Window.ActiveWindow.Scene as Part, circleSegment);
+		//DesignCurve.Create(Window.ActiveWindow.Scene as Part, lineSegment);
+
+		return Body.CreatePlanarBody(Plane.Create(circle.Frame), new ITrimmedCurve[] { circleSegment, lineSegment });
+	}
+
+	public static MeshPrimitive GetCircularTabMesh(Point p0, Point p1, Direction normal, double angle, bool isMale) {
+		Circle circle = GetCircularTabCircle(p0, p1, normal, angle, isMale);
+
+		double centerParam = Math.PI / 2;
+		if (!isMale) {
+			angle *= -1;
+			centerParam += Math.PI;
+		}
+
+		ITrimmedCurve circleSegment = CurveSegment.Create(circle, Interval.Create(centerParam - angle / 2, centerParam + angle / 2));
+		IList<Point> points = circleSegment.GetPolyline();
+		Debug.Assert (points.Count > 3, "Not enough points for tab faceting.");
+
+		var facets = new List<Facet>();
+		for (int i = 1; i < points.Count - 1; i++)
+			facets.Add(new Facet(0, i, i + 1));
+
+		return MeshPrimitive.Create(points, normal, facets);
+	}
+
+	public static Circle GetCircularTabCircle(Point p0, Point p1, Direction normal, double angle, bool isMale) {
+		Direction dirX = (p1.Vector - p0.Vector).Direction;
+		Direction dirY = Direction.Cross(normal, dirX);
+		Plane plane = Plane.Create(Frame.Create(p0, dirX, dirY));
+
+		double halfLength = (p1.Vector - p0.Vector).Magnitude / 2;
+		double radius = halfLength / Math.Sin(angle / 2);
+		double offset = Math.Sqrt(radius * radius - halfLength * halfLength);
+		Point midPoint = p0 + dirX * halfLength;
+		Point center = midPoint + dirY * (isMale ? offset : -offset);
+		return Circle.Create(Frame.Create(center, dirX, -dirY), radius);
+	}
+}

@@ -1,0 +1,543 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.Windows.Forms;
+using System.Linq;
+using SpaceClaim.Api.V8;
+using SpaceClaim.Api.V8.Display;
+using SpaceClaim.Api.V8.Extensibility;
+using SpaceClaim.Api.V8.Geometry;
+using SpaceClaim.Api.V8.Modeler;
+using SpaceClaim.AddInLibrary;
+using Unfold.Properties;
+using Point = SpaceClaim.Api.V8.Geometry.Point;
+using Command = SpaceClaim.Api.V8.Command;
+
+namespace SpaceClaim.AddIn.Unfold {
+	abstract class LawsonPropertiesButtonCapsule : RibbonButtonCapsule {
+		protected double angleForce = 1;
+		protected double vForce = 0.0005;
+		protected double uAngleForce = 0;// 0.01;
+
+		public LawsonPropertiesButtonCapsule(string name, string text, System.Drawing.Image image, string hint, RibbonCollectionCapsule parent, ButtonSize buttonSize)
+			: base(name, text, image, hint, parent, buttonSize) {
+
+			Values[Resources.LawsonTabAngleForce] = new RibbonCommandValue(angleForce);
+			Values[Resources.LawsonVAlignmentForce] = new RibbonCommandValue(vForce);
+			Values[Resources.LawsonUAngleForce] = new RibbonCommandValue(uAngleForce);
+		}
+
+		protected override void OnExecute(Command command, System.Drawing.Rectangle buttonRect) {
+			angleForce = Values[Resources.LawsonTabAngleForce].Value;
+			vForce = Values[Resources.LawsonVAlignmentForce].Value;
+			uAngleForce = Values[Resources.LawsonUAngleForce].Value;
+		}
+	}
+
+	class LawsonRelaxButtonCapsule : LawsonPropertiesButtonCapsule {
+		public LawsonRelaxButtonCapsule(RibbonCollectionCapsule parent, ButtonSize buttonSize)
+			: base("LawsonRelax", Resources.LawsonRelaxText, null, Resources.LawsonRelaxHint, parent, buttonSize) {
+		}
+
+		protected override void OnUpdate(Command command) {
+			Window window = Window.ActiveWindow;
+			command.IsEnabled = window != null;
+			command.IsChecked = window != null && window.ActiveTool is LawsonRelax;
+		}
+
+		protected override void OnExecute(Command command, Rectangle buttonRect) {
+			base.OnExecute(command, buttonRect);
+			Window window = Window.ActiveWindow;
+			window.SetTool(new LawsonRelax(angleForce, vForce, uAngleForce));
+		}
+	}
+
+	class LawsonRelax : Tool {
+		//Profile profile;
+		double p = 0.5;
+		double q = 1;
+		double circleAngle = Math.PI / 2;
+		Vector inverseOffset = Vector.Create(0.5, 0, 0);
+
+		const int iSteps = 24;
+		const int jSteps = 48;
+		const double scale = 1;// 0.01;
+
+		double angleForce;
+		double vForce;
+		double uAngleForce;
+
+		CircularList<CircularList<double>> vParameters = new CircularList<CircularList<double>>(iSteps * 2);
+		CircularList<CircularList<double>> tabAngles = new CircularList<CircularList<double>>(iSteps * 2);
+		CircularList<CircularList<Point>> points = new CircularList<CircularList<Point>>(iSteps * 2);
+
+		int iteration = -1;
+
+		System.Drawing.Point? lastCursorPos;
+		//		double cursorScale = 0.01;
+
+		public LawsonRelax(double angleForce, double vForce, double uAngleForce)
+			: base(InteractionMode.Solid) {
+
+			this.angleForce = angleForce;
+			this.vForce = vForce;
+			this.uAngleForce = uAngleForce;
+		}
+
+		System.Threading.Thread thread;
+
+		protected override bool OnKeyUp(Keys modifiers, Keys code) {
+			if (code == Keys.Space) {
+				if (thread != null && thread.ThreadState == System.Threading.ThreadState.Running) {
+					thread.Abort();
+					thread = null;
+				}
+				else {
+					thread = new System.Threading.Thread((System.Threading.ThreadStart) delegate {
+						while (true) {
+							for (int i = 0; i < 20; i++)
+								Iterate();
+
+							Rendering = Graphic.Create(null, null, LawsonRelaxGraphics.GetGraphic(points, tabAngles));
+						}
+					});
+					thread.Start();
+				}
+				return true;
+			}
+
+			return base.OnKeyUp(modifiers, code);
+		}
+
+		void Reset() {
+			Rendering = null;
+			StatusText = "Get ready for some mayhem.";
+
+			for (int i = 0; i < iSteps * 2; i++) {
+				double u = 2 * Math.PI * (double) i / iSteps;
+				vParameters.Add(new CircularList<double>(jSteps));
+				tabAngles.Add(new CircularList<double>(jSteps));
+				points.Add(new CircularList<Point>(jSteps));
+				for (int j = 0; j < jSteps; j++) {
+					vParameters[i].Add(2 * Math.PI * ((double) j - 0.5) / jSteps);
+					tabAngles[i].Add((double) 5 / 6 * Math.PI);
+					points[i].Add(Lawson.Evaluate(PointUV.Create(vParameters[i][j], u), p, q, circleAngle, inverseOffset, true) * scale);
+				}
+			}
+
+			DesignBody desBody = ShapeHelper.CreateCircle(Frame.World, 11, Window.ActiveWindow.Scene as Part);
+			desBody.SetVisibility(null, false);
+
+			Iterate();
+		}
+
+		private void Iterate() {
+			iteration++;
+
+			var newVParameters = new CircularList<CircularList<double>>(iSteps * 2);
+			var newTabAngles = new CircularList<CircularList<double>>(iSteps * 2);
+
+			for (int i = 0; i < iSteps * 2; i++) {
+				newVParameters.Add(new CircularList<double>(jSteps));
+				newTabAngles.Add(new CircularList<double>(jSteps));
+				for (int j = 0; j < jSteps; j++) {
+					newVParameters[i].Add(vParameters[i][j]);
+					newTabAngles[i].Add(tabAngles[i][j]);
+				}
+			}
+
+			double cumulativeErrorTally = 0;
+			for (int i = 0; i < iSteps * 2; i++) {
+				for (int j = 0; j < jSteps; j++) {
+					bool swap = j % 2 == 0;
+					int iOther = !swap ? i + 1 : i - 1;
+
+					Circle baseCircle = GetTabFromPoints(tabAngles, points, true, i, j, iOther);
+					Circle circle0 = GetTabFromPoints(tabAngles, points, true, iOther, j - 1, i);
+					Circle circle1 = GetTabFromPoints(tabAngles, points, true, iOther, j + 1, i);
+
+					double distance0 = (baseCircle.Frame.Origin - circle0.Frame.Origin).Magnitude - baseCircle.Radius - circle0.Radius;
+					double distance1 = (baseCircle.Frame.Origin - circle1.Frame.Origin).Magnitude - baseCircle.Radius - circle1.Radius;
+					cumulativeErrorTally += distance0 * distance0 + distance1 * distance1;
+
+					double iAngle = AddInHelper.AngleBetween(
+						circle0.Frame.Origin - baseCircle.Frame.Origin,
+						circle1.Frame.Origin - baseCircle.Frame.Origin
+					);
+					double angleOffset = (Math.PI / 2 - Math.Abs(iAngle)) * uAngleForce;
+
+					newTabAngles[i][j] -= (distance0 + distance1) / 2 * angleForce + angleOffset;
+					newTabAngles[i][j] = Math.Max(Math.PI / 12, newTabAngles[i][j]);
+					newTabAngles[i][j] = Math.Min(Math.PI, newTabAngles[i][j]);
+
+					double vOffset = (distance1 - distance0) * vForce;
+
+					double[] dontOptimize = new double[] { 0, 1, jSteps / 2, jSteps / 2 + 1 };
+					if (!dontOptimize.Contains(j)) {
+						newVParameters[i][j] += vOffset;
+				//		newVParameters[i][j] += angleOffset / 10;
+					}
+
+					if (!dontOptimize.Contains(j + 1)) {
+						newVParameters[i][j + 1] += vOffset; //was +
+				//		newVParameters[i][j + 1] -= angleOffset / 10;
+					}
+
+				}
+			}
+
+			double lastCumulativeError = Math.Sqrt(cumulativeErrorTally / (iSteps * 2 * jSteps * 2));
+		//	Trace.WriteLine(lastCumulativeError);
+
+			// We're not calculating the points for the last iteration.  Whatevs.
+			vParameters = newVParameters;
+			tabAngles = newTabAngles;
+
+			for (int i = 0; i < iSteps * 2; i++) {
+				double u = 2 * Math.PI * (double) i / iSteps;
+				for (int j = 0; j < jSteps; j++) {
+					points[i][j] = Lawson.Evaluate(PointUV.Create(vParameters[i][j], u), p, q, circleAngle, inverseOffset, true) * scale;
+			//		Trace.WriteLine(string.Format("{0} {1} {2}", i, j, tabAngles[i][j]));
+				}
+			}
+		}
+
+		private static Circle GetTabFromPoints(CircularList<CircularList<double>> tabAngles, CircularList<CircularList<Point>> points, bool swap, int i, int j, int iOther) {
+			Point p0 = points[i][j];
+			Point p1 = points[i][j + 1];
+			Point pn = (new Point[] { points[iOther][j], points[iOther][j + 1] }).Average();
+			Direction normal = Vector.Cross(p0 - pn, p1 - pn).Direction;
+			return Tabs.GetCircularTabCircle(p0, p1, normal, tabAngles[i][j], swap);
+		}
+
+		protected override void OnInitialize() {
+			Reset();
+
+			Rendering = Graphic.Create(null, null, LawsonRelaxGraphics.GetGraphic(points, tabAngles));
+
+			//	SelectionTypes = new[] { typeof(DesignFace), typeof(CustomObject) }; bzc
+		}
+
+		protected override IDocObject AdjustSelection(IDocObject docObject) {
+#if false
+			var desFace = docObject as DesignFace;
+			if (desFace != null)
+				return desFace.Shape.GetGeometry<Plane>() != null ? desFace : null;
+
+			var custom = docObject as CustomObject;
+			if (custom != null)
+				return custom.Type == Profile.Type ? custom : null;
+
+			Debug.Fail("Unexpected case");
+#endif
+			return null;
+		}
+
+		protected override void OnEnable(bool enable) {
+			if (enable)
+				Window.PreselectionChanged += Window_PreselectionChanged;
+			else
+				Window.PreselectionChanged -= Window_PreselectionChanged;
+		}
+
+		/*
+		 * Using the keyboard or mouse wheel, we can change the preselection without moving
+		 * the mouse.  We need access to the buttons and cursor ray so we can make like the
+		 * mouse just moved.
+		 */
+
+		void Window_PreselectionChanged(object sender, EventArgs e) {
+			// preselection can change without the mouse moving (e.g. just created a profile)
+			Rendering = null;
+
+			InteractionContext context = InteractionContext;
+			Line cursorRay = context.CursorRay;
+			if (cursorRay != null)
+				OnMouseMove(context.Window.CursorPosition, cursorRay, Control.MouseButtons);
+		}
+
+
+		protected override bool OnMouseMove(System.Drawing.Point cursorPos, Line cursorRay, MouseButtons button) {
+#if false
+
+			IDocObject preselection = InteractionContext.Preselection;
+			DesignFace desFace = null;
+
+			Profile existingProfile = Profile.GetWrapper(preselection as CustomObject);
+			if (existingProfile != null)
+				desFace = existingProfile.Face;
+			if (desFace == null)
+				desFace = preselection as DesignFace;
+			if (desFace == null) // selection filtering is not applied if you (pre)select in the tree
+				return false;
+
+			Face face = desFace.Shape;
+			var plane = face.GetGeometry<Plane>();
+
+			Point point;
+			if (!plane.TryIntersectLine(cursorRay, out point))
+				return false; // plane is side-on
+
+			Fin fin;
+			double offset = GetOffset(face, plane, point, out fin);
+
+			var style = new GraphicStyle
+			{
+				LineColor = Color.DodgerBlue,
+				LineWidth = 3
+			};
+			Graphic datumGraphic = Graphic.Create(style, CurvePrimitive.Create(fin.Edge));
+
+			if (existingProfile != null)
+				Rendering = datumGraphic;
+			else {
+				style = new GraphicStyle
+				{
+					LineColor = Color.Gray
+				};
+				Rendering = Graphic.Create(style, null, Profile.GetGraphic(0.5, 1, Math.PI / 2, Vector.Create(0.5, 0, 0)), datumGraphic);
+			}
+#endif
+
+			return false; // if we return true, the preselection won't update
+		}
+
+		#region Click-Click Notifications
+
+		protected override bool OnClickStart(System.Drawing.Point cursorPos, Line cursorRay) {
+#if false
+			var desFace = InteractionContext.Preselection as DesignFace;
+			if (desFace != null) {
+				Face face = desFace.Shape;
+				var plane = face.GetGeometry<Plane>();
+
+				Point point;
+				if (!plane.TryIntersectLine(cursorRay, out point))
+					return false; // plane is side-on
+#endif
+			//	Command.ExecuteTask("Create Profile", () => Profile.Create(p, q, circleAngle,  inverseOffset));
+
+
+			return false;
+		}
+
+		#endregion
+
+		#region Drag Notifications
+
+		//	Line lastCursorRay;
+
+		protected override void OnDragStart(System.Drawing.Point cursorPos, Line cursorRay) {
+			//			profile = Profile.GetWrapper(InteractionContext.Preselection as CustomObject);
+			//if (profile == null)
+			//    return;
+
+			//Point? pointOnCustom = InteractionContext.PreselectionPoint;
+			//if (pointOnCustom == null) {
+			//    profile = null;
+			//    return;
+			//}
+
+			lastCursorPos = cursorPos;
+
+			StatusText = "Adjust.";
+		}
+
+		protected override void OnDragMove(System.Drawing.Point cursorPos, Line cursorRay) {
+			//if (profile == null)
+			//    return;
+
+			//Point point;
+			//if (!profilePlane.TryIntersectLine(cursorRay, out point))
+			//    return; // plane is side-on
+
+			lastCursorPos = cursorPos;
+
+			for (int i = 0; i < 20; i++)
+				Iterate();
+
+			Rendering = Graphic.Create(null, null, LawsonRelaxGraphics.GetGraphic(points, tabAngles));
+			Apply(String.Format("Iteration {0}", iteration));
+		}
+
+		protected override void OnDragEnd(System.Drawing.Point cursorPos, Line cursorRay) {
+			Complete(); // completes the apply-loop
+			//	Reset();
+		}
+
+		protected override void OnDragCancel() {
+			Cancel(); // aborts work done by the last call to Apply
+			Reset();
+		}
+
+		#endregion
+
+		protected override bool OnApply() {
+			return true;
+		}
+	}
+
+	public class LawsonRelaxGraphics : CustomWrapper<Profile> {
+		CircularList<CircularList<Point>> points;
+		CircularList<CircularList<double>> tabAngles;
+
+		// creates a wrapper for an existing custom object
+		protected LawsonRelaxGraphics(CustomObject subject)
+			: base(subject) {
+		}
+
+		// creates a new custom object and a wrapper for it
+		protected LawsonRelaxGraphics(CircularList<CircularList<Point>> points, CircularList<CircularList<double>> tabAngles)
+			: base(Window.ActiveWindow.Scene as Part) {
+			this.points = points;
+			this.tabAngles = tabAngles;
+		}
+		// static Create method follows the API convention and parent should be first argument
+		public static LawsonRelaxGraphics Create(CircularList<CircularList<Point>> points, CircularList<CircularList<double>> tabAngles) {
+			var widget = new LawsonRelaxGraphics(points, tabAngles);
+			widget.Initialize();
+			return widget;
+		}
+
+		/*
+		 * Automatic update of a custom object happens in two stages.
+		 * 
+		 *  (1)	IsAlive is called to see if the custom object should continue to exist.
+		 *  
+		 *		If a custom object requires references to other doc objects for its definition,
+		 *		it can return false if any of these objects no longer exists.
+		 *		
+		 *		The data for a custom wrapper is stored in the custom object, and references to
+		 *		doc objects are stored as monikers.  When a custom wrapper is obtained, a moniker
+		 *		to a deleted object will resolve as a null reference.  If the custom wrapper already
+		 *		held the reference, and the doc object has since been deleted, then the reference
+		 *		will not be null, but IsDeleted will be true.  Therefore both cases must be checked.
+		 *		
+		 *		In our example, if the design face no longer exists, or the design face is no longer
+		 *		planar, then the custom object should be deleted.
+		 *		
+		 *		If the custom object does not depend on other objects for its continued existence,
+		 *		then there is no need to override IsAlive.  The default implementation returns true.
+		 *		
+		 *		In some cases, you might decide that rather than being deleted, the custom object
+		 *		should become 'invalid' and render itself so as to indicate this to the user.  You
+		 *		might provide a command to repair the custom object.  In this case, there is no need
+		 *		to override IsAlive, but you would override Update so that the Rendering indicates
+		 *		the invalid state, perhaps using a special color.
+		 *		
+		 *  (2)	Update is called to potentially update the custom object.
+		 *  
+		 *		A custom object needs updating if it has any information which is evaluated from
+		 *		its 'determinants', i.e. those objects on which its evaluated state depends.
+		 *		
+		 *		The Rendering is an example of evaluated data.
+		 *		
+		 *		You should call IsChanged with the determinants.  Determinants are often references
+		 *		to other doc objects, but they do not have to be.  Determinants can be obtained by
+		 *		traversals, e.g. the Parent might be a determinant.
+		 *		
+		 *		If IsChanged returns true, you should update evaluated data, e.g. the Rendering.
+		 *		You must not change the definition of the custom object during update; you can only
+		 *		changed evaluated data.  For example, you cannot call Commit during Update.
+		 *		
+		 *		The custom object itself is implicitly a determinant.  You do not need to supply
+		 *		'this' as one of the determinants with IsChanged.  This is useful, since if the rendering
+		 *		depends on data in the custom object itself (which is likely), the fact that the custom
+		 *		object was changed when Commit was called after the data was changed means that IsChanged
+		 *		will return true and you will then proceed to update the Rendering.
+		 *		
+		 *		Internally, the state of update of all the determinants, including the custom object itself,
+		 *		is recorded each time IsChanged is called.  Each time IsChanged is called, if this combined
+		 *		update state has changed, IsChanged returns true.  This can happen because objects have
+		 *		been modified, or an undo/redo has occurred, or a referenced document has been replaced.
+		 */
+
+		protected override bool IsAlive {
+			get { return true; }
+		}
+
+		protected override void Update() {
+			//if (IsChanged(desFace))
+			//    UpdateRendering();
+		}
+
+		void UpdateRendering() {
+			Rendering = GetGraphic(points, tabAngles);
+		}
+
+		public static Graphic GetGraphic(CircularList<CircularList<Point>> points, CircularList<CircularList<double>> tabAngles) {
+			var graphics = new List<Graphic>();
+
+			int iSteps = points.Count / 2;
+			int jSteps = points[0].Count;
+
+			//		Body body = Tabs.CreateCircularTab(p0, p1, normal, angle, isMale);
+
+			bool swap = false;
+			for (int i = 0; i < iSteps; i++) {
+				var facetVertices = new List<FacetVertex>();
+				var facets = new List<Facet>();
+				var tabMeshes = new List<MeshPrimitive>();
+				for (int j = 0; j < jSteps; j++) {
+					int facetOffset = facetVertices.Count;
+					// Main ring
+					Point p00 = points[i][j];
+					Point p01 = points[i][j + 1];
+					Point p10 = points[i + 1][j];
+					Point p11 = points[i + 1][j + 1];
+
+					//Vector n0 = Vector.Cross(p00 - p01, p00 - p10);
+					//Vector n1 = Vector.Cross(p11 - p10, p11 - p01);
+					//Direction n = (n0 + n1).Direction;
+
+					//facetVertices.Add(new FacetVertex(p00, n));
+					//facetVertices.Add(new FacetVertex(p01, n));
+					//facetVertices.Add(new FacetVertex(p10, n));
+					//facetVertices.Add(new FacetVertex(p11, n));
+
+					//if ((p00 - p11).Magnitude < (p10 - p01).Magnitude) {
+					//    facets.Add(new Facet(0 + facetOffset, 1 + facetOffset, 3 + facetOffset));
+					//    facets.Add(new Facet(0 + facetOffset, 3 + facetOffset, 2 + facetOffset));
+					//}
+					//else {
+					//    facets.Add(new Facet(0 + facetOffset, 2 + facetOffset, 1 + facetOffset));
+					//    facets.Add(new Facet(1 + facetOffset, 3 + facetOffset, 2 + facetOffset));
+					//}
+
+					Point pn0 = (new Point[] { points[i - 1][j], points[i - 1][j + 1] }).Average();
+					Point pn1 = (new Point[] { points[i + 2][j], points[i + 2][j + 1] }).Average();
+
+					Direction normal0 = Vector.Cross(p01 - pn0, p00 - pn0).Direction;
+					Direction normal1 = Vector.Cross(p10 - pn1, p11 - pn1).Direction;
+
+					tabMeshes.Add(Tabs.GetCircularTabMesh(p01, p00, -normal0, tabAngles[i][j], swap));
+					tabMeshes.Add(Tabs.GetCircularTabMesh(p10, p11, -normal1, tabAngles[i + 1][j], !swap));
+
+					swap = !swap;
+				}
+
+				HSBColor hsbFill = new HSBColor(255, (float) i / iSteps * 360, 122, 88);
+				HSBColor hsbLine = new HSBColor(System.Drawing.Color.MidnightBlue);
+				hsbLine.H = (float) i / iSteps * 360;
+
+				var style = new GraphicStyle {
+					EnableDepthBuffer = true,
+					LineColor = hsbLine.Color,
+					LineWidth = 1,
+					FillColor = hsbFill.Color,
+
+					EnableCulling = true
+				};
+
+				//		graphics.Add(Graphic.Create(style, MeshPrimitive.Create(facetVertices, facets)));
+				foreach (MeshPrimitive mesh in tabMeshes)
+					graphics.Add(Graphic.Create(style, mesh));
+
+			}
+
+			return Graphic.Create(null, null, graphics);
+		}
+
+	}
+}

@@ -1,0 +1,276 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<customUI xmlns="http://schemas.spaceclaim.com/customui">
+  <ribbon>
+    <tabs>
+      <tab id="twitterPanel" label="Twitter" command="twitterPanel" >
+        <group id="twitterGroup" label="Twitter" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="twitterContainer" layoutOrientation="horizontal" isGroup="false" verticalAlign="middle">
+            <button id="twitterIsOn" label="Twitter" size="large" command="twitterIsOn" />
+            <button id="twitterPost" label="Post Tweet" size="large" command="twitterPost" />
+            <button id="twitterPostImage" label="Post Image" size="large" command="twitterPostImage" />
+            <button id="twitterPostMovie" label="Post Movie" size="large" command="twitterPostMovie" />
+          </container>
+        </group>
+        <group id="twitterCheckboxesGroup" label="Options" layoutOrientation="horizontal" itemSpacing="3">
+          <container id="twitterCheckboxesContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="3">
+            <checkbox id="twitterIsShowingOwnTweets" command="twitterIsShowingOwnTweets" />
+            <checkbox id="twitterIsCheckingDirectMessages" command="twitterIsCheckingDirectMessages" />
+            <checkbox id="twitterIsAnnoying" command="twitterIsAnnoying" />
+          </container>
+        </group>
+      </tab>
+      <tab id="aeRibbonPanel" label="AE Tools">
+        <group id="aeToolsCheckboxesGroup" label="Options" layoutOrientation="horizontal" itemSpacing="3">
+          <container id="aeToolsCheckboxesContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="3">
+            <checkbox id="optimizedPanelCheckBoxItem" command="AEShowOptimizedPanel" />
+            <checkbox id="forceNewVersionCheckBoxItem" command="AEForceNewVersion" />
+            <checkbox id="playSoundsCheckBoxItem" command="AEPlaySounds" />
+          </container>
+        </group>
+        <group id="aeToolsFreezeGroup" label="Tools" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="aeToolsFreezeContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle">
+            <button id="freezeButton" label="Freeze" size="medium" command="AEFreeze" />
+            <button id="animateButton" label="Wiggle" size="medium" command="AEWiggle" />
+          </container>
+          <button id="SpaceSphereTool" size="large" command="SpaceSphereTool"/>
+        </group>
+        <group id="tumbleGroupContainer" label="Tools" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="tumbleContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle">
+            <button id="tumbleButton" label="Tumble" size="large" command="AETumble" />
+          </container>
+          <container id="tumbleSettingsContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle">
+            <button id="AETumbleSpeed" label="Speed" size="small" command="AETumbleSpeed">
+              <button id="AETumbleSpeed30" label="30" command="AETumbleSpeed30" commandAttributes="notext" />
+              <button id="AETumbleSpeed15" label="15" command="AETumbleSpeed15" commandAttributes="notext" />
+              <button id="AETumbleSpeed10" label="10" command="AETumbleSpeed10" commandAttributes="notext" />
+              <button id="AETumbleSpeed5" label="5" command="AETumbleSpeed5" commandAttributes="notext" />
+              <button id="AETumbleSpeed4" label="4" command="AETumbleSpeed4" commandAttributes="notext" />
+              <button id="AETumbleSpeed3" label="3" command="AETumbleSpeed3" commandAttributes="notext" />
+              <button id="AETumbleSpeed2" label="2" command="AETumbleSpeed2" commandAttributes="notext" />
+              <button id="AETumbleSpeed1" label="1" command="AETumbleSpeed1" commandAttributes="notext" />
+              <button id="AETumbleSpeed1_2" label="1/2" command="AETumbleSpeed1_2" commandAttributes="notext" />
+              <button id="AETumbleSpeed1_4" label="1/4" command="AETumbleSpeed1_4" commandAttributes="notext" />
+              <button id="AETumbleSpeed1_10" label="1/10" command="AETumbleSpeed1_10" commandAttributes="notext" />
+              <button id="AETumbleSpeed1_30" label="1/30" command="AETumbleSpeed1_30" commandAttributes="notext" />
+              <button id="AETumbleSpeed1_60" label="1/60" command="AETumbleSpeed1_60" commandAttributes="notext" />
+            </button>
+            <button id="tumbleStylesButton" label="Spin Style" size="small" command="AETumbleStyles">
+              <button id="tumbleStyleSpinY" label="Screen vertical axis" command="tumbleStyleSpinY" commandAttributes="notext"/>
+              <button id="tumbleStyleSpinY30" label="Screen vertical axis with tilt" command="tumbleStyleSpinY30" commandAttributes="notext"/>
+              <button id="tumbleStyleGaze" label="Gaze around" command="tumbleStyleGaze" commandAttributes="notext"/>
+              <button id="tumbleStyleFreeFall" label="Free fall" command="tumbleStyleFreeFall" commandAttributes="notext"/>
+              <button id="tumbleStyleDizzy" label="Dizzy" command="tumbleStyleDizzy" commandAttributes="notext"/>
+            </button>
+          </container>
+          <container id="tumbleOptionsContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="3">
+            <checkbox id="AETumbleColors" text="Tumble Colors" command="AETumbleColors" />
+            <checkbox id="AETumbleAboutCenter" text="Rotate about center of selection" command="AETumbleAboutCenter" />
+            <checkbox id="AETumbleSaveImages" text="Save images of each frame" command="AETumbleSaveImages" />
+          </container>
+        </group>
+        <group id="aeToolsAnimateHistoryGroup" label="Animate History" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="aeToolsAnimateHistoryContainer" layoutOrientation="horizontal" isGroup="false" verticalAlign="middle">
+            <button id="animateHistoryButton" label="Animate" size="large" command="AEAnimateHistory" />
+          </container>
+        </group>
+        <group id="aeToolsImageGroup" label="Image" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="aeToolsImageContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle">
+            <button id="aeToolsImagePlanarButton" label="Planar" size="small" command="AEImagePlanar" />
+            <button id="aeToolsImageCylindricalButton" label="Cylindrical" size="small" command="AEImageCylindrical" />
+            <button id="aeToolsImageSphericalButton" label="Spherical" size="small" command="AEImageSpherical" />
+          </container>
+        </group>
+        <group id="aeSpackleGroup" label="Spackle" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="aeSpackleContainer" layoutOrientation="horizontal" isGroup="false" verticalAlign="middle">
+            <button id="aeSpackleTool" label="Spackle" size="large" command="AESpackleTool" />
+          </container>
+        </group>
+        <group id="aeSkeletizeGroup" label="Skeletize" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="aeSkeletizeContainer" layoutOrientation="horizontal" isGroup="false" verticalAlign="middle">
+            <button id="AESkeletize" size="large" command="AESkeletize" />
+          </container>
+          <container id="aeSkeletizeOptionsContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="0">
+            <checkbox id="AESkeletizeOptionCylinders" command="AESkeletizeOptionCylinders" />
+            <checkbox id="AESkeletizeOptionSpheres" command="AESkeletizeOptionSpheres" />
+            <checkbox id="AESkeletizeOptionSausages" command="AESkeletizeOptionSausages" />
+          </container>
+          <container id="aeSkeletizeDiameterContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="1">
+            <button id="AESkeletizeCylinderDiameter" size="small" command="AESkeletizeCylinderDiameter">
+              <button id="AESkeletizeCylinderDiameter1_10" label="100 mm" command="AESkeletizeCylinderDiameter1_10" commandAttributes="notext" />
+              <button id="AESkeletizeCylinderDiameter1_100" label="10 mm" command="AESkeletizeCylinderDiameter1_100" commandAttributes="notext" />
+              <button id="AESkeletizeCylinderDiameter1_1000" label="1 mm" command="AESkeletizeCylinderDiameter1_1000" commandAttributes="notext" />
+              <button id="AESkeletizeCylinderDiameter1_10000" label="0.1 mm" command="AESkeletizeCylinderDiameter1_10000" commandAttributes="notext" />
+              <button id="AESkeletizeCylinderDiameter1_100000" label="0.001 mm" command="AESkeletizeCylinderDiameter1_100000" commandAttributes="notext" />
+            </button>
+            <button id="AESkeletizeCylinderDiameterAdjustUp" size="small" command="AESkeletizeCylinderDiameterAdjustUp" />
+            <button id="AESkeletizeCylinderDiameterAdjustDown" size="small" command="AESkeletizeCylinderDiameterAdjustDown" />
+          </container>
+          <container id="aeFaceCenterContainer" layoutOrientation="horizontal" isGroup="false" verticalAlign="middle">
+            <button id="AEFaceCenter" size="large" command="AEFaceCenter" />
+          </container>
+        </group>
+        <group id="aeForstnerizeGroup" label="Manufacturing" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="aeForstnerizeDiameterContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="1">
+            <button id="AEForstnerize" size="small" command="AEForstnerize" />
+            <button id="AEForstnerizeCylinderDiameter" size="small" command="AEForstnerizeCylinderDiameter">
+              <button id="AEForstnerizeCylinderDiameter1_8" label="1/8" command="AEForstnerizeCylinderDiameter1_8" commandAttributes="notext" />
+              <button id="AEForstnerizeCylinderDiameter3_16" label="3/16" command="AEForstnerizeCylinderDiameter3_16" commandAttributes="notext" />
+              <button id="AEForstnerizeCylinderDiameter1_4" label="1/4" command="AEForstnerizeCylinderDiameter1_4" commandAttributes="notext" />
+              <button id="AEForstnerizeCylinderDiameter5_16" label="5/16" command="AEForstnerizeCylinderDiameter5_16" commandAttributes="notext" />
+              <button id="AEForstnerizeCylinderDiameter3_8" label="3/8" command="AEForstnerizeCylinderDiameter3_8" commandAttributes="notext" />
+              <button id="AEForstnerizeCylinderDiameter7_16" label="7/16" command="AEForstnerizeCylinderDiameter7_16" commandAttributes="notext" />
+              <button id="AEForstnerizeCylinderDiameter5_8" label="5/8" command="AEForstnerizeCylinderDiameter5_8" commandAttributes="notext" />
+              <button id="AEForstnerizeCylinderDiameter3_4" label="3/4" command="AEForstnerizeCylinderDiameter3_4" commandAttributes="notext" />
+              <button id="AEForstnerizeCylinderDiameter7_8" label="7/4" command="AEForstnerizeCylinderDiameter7_8" commandAttributes="notext" />
+              <button id="AEForstnerizeCylinderDiameter1" label="1" command="AEForstnerizeCylinderDiameter1" commandAttributes="notext" />
+            </button>
+            <button id="AEZBitmap" size="small" command="AEZBitmap" />
+          </container>
+        </group>
+        <group id="aeExportGroup" label="Export" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="aeExportContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle">
+            <button id="AEExport" size="small" command="AEExport" />
+            <button id="AECurves" size="small" command="AECurves" />
+            <button id="AEVector" size="small" command="AEVector" />
+          </container>
+        </group>
+      </tab>
+      <tab id="hyperShotRibbonPanel" >
+        <group id="aeGrowColorsGroup" label="Colors" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="aeColorsSelectionContainer" layoutOrientation="horizontal" isGroup="false" verticalAlign="middle">
+            <container id="aeColorsSelectionContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="0">
+              <button id="AEColorsGrowSelection" size="small" command="AEColorsGrowSelection" />
+              <button id="AEColorsGrowSelectionThreshold" label="Threshold" size="small" command="AEColorsGrowSelectionThreshold">
+                <button id="AEColorsGrowSelectionThreshold0" label="0" command="AEColorsGrowSelectionThreshold0" commandAttributes="notext" />
+                <button id="AEColorsGrowSelectionThreshold4" label="4" command="AEColorsGrowSelectionThreshold4" commandAttributes="notext" />
+                <button id="AEColorsGrowSelectionThreshold16" label="16" command="AEColorsGrowSelectionThreshold16" commandAttributes="notext" />
+                <button id="AEColorsGrowSelectionThreshold32" label="32" command="AEColorsGrowSelectionThreshold32" commandAttributes="notext" />
+                <button id="AEColorsGrowSelectionThreshold64" label="64" command="AEColorsGrowSelectionThreshold64" commandAttributes="notext" />
+              </button>
+            </container>
+          </container>
+        </group>
+        <group id="aeToolsAlterColorsGroup" label="Alter Colors" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="aeToolsAlterColorsContainer" layoutOrientation="horizontal" isGroup="false" verticalAlign="middle">
+            <container id="aeToolsColorsContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="1">
+              <button id="AEColorsRestore" size="small" command="AEColorsRestore" />
+              <button id="AEColorsRandomizeColor" size="small" command="AEColorsRandomizeColor" />
+              <button id="AEColorsVaryColor" size="small" command="AEColorsVaryColor" />
+            </container>
+            <container id="aeToolsColorsRandomizeContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="1">
+              <button id="AEColorsRandomizeHue" size="small" command="AEColorsRandomizeHue" />
+              <button id="AEColorsRandomizeBrightness" size="small" command="AEColorsRandomizeBrightness" />
+              <button id="AEColorsRandomizeSaturation" size="small" command="AEColorsRandomizeSaturation" />
+            </container>
+            <container id="aeToolsColorsVaryContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="1">
+              <button id="AEColorsVaryHue" size="small" command="AEColorsVaryHue" />
+              <button id="AEColorsVaryBrightness" size="small" command="AEColorsVaryBrightness" />
+              <button id="AEColorsVarySaturation" size="small" command="AEColorsVarySaturation" />
+            </container>
+            <container id="aeToolsColorsDecreaseContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="1">
+              <button id="AEColorsDecreaseHue" size="small" command="AEColorsDecreaseHue" />
+              <button id="AEColorsDecreaseBrightness" size="small" command="AEColorsDecreaseBrightness" />
+              <button id="AEColorsDecreaseSaturation" size="small" command="AEColorsDecreaseSaturation" />
+            </container>
+            <container id="aeToolsColorsIncreaseContainer" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="1">
+              <button id="AEColorsIncreaseHue" size="small" command="AEColorsIncreaseHue" />
+              <button id="AEColorsIncreaseBrightness" size="small" command="AEColorsIncreaseBrightness" />
+              <button id="AEColorsIncreaseSaturation" size="small" command="AEColorsIncreaseSaturation" />
+            </container>
+          </container>
+        </group>
+      </tab>
+      <tab id="caePrepareRibbonPanel">
+        <group id="AERounds" label="Rounds" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="AERoundsContainer" layoutOrientation="horizontal" isGroup="false" verticalAlign="middle">
+            <button id="AE.Rounds.Remove" size="large" command="AE.Rounds.Remove" />
+          </container>
+        </group>
+      </tab>
+      <tab id="optimizedPanel" label="Optimized" command="AEOptimizedPanel">
+        <group id="FileRibbonBarOptimized" label="Sketch" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="itemContainerFileptimized" layoutOrientation="horizontal" isGroup="false" verticalAlign="middle">
+            <button id="saveVersionButtonItemOptimized" size="large" command="SaveVersion" />
+          </container>
+        </group>
+        <group id="viewStyleRibbonBarOptimized" layoutOrientation="horizontal" itemSpacing="1">
+          <button id="graphicsModeButtonItemOptimized" label="Style" style="imageandtext" size="large" command="GraphicsMode">
+            <button id="solidButtonItem" label="Shaded" size="large" command="Shaded" />
+            <button id="shadedPerspectiveButton" label="Perpective Shaded" size="large" command="ShadedPerspective" />
+            <button id="wireframeButtonItem" label="Wireframe" size="large" command="Wireframe" />
+            <button id="hiddenLineButtonItem" label="Hidden Line" size="large" command="HiddenLine" />
+            <button id="hiddenLineRemovedButtonItem" label="Hidden Line Removed" size="large" command="HiddenLineRemoved" />
+          </button>
+        </group>
+        <group id="sketchRibbonBarOptimized" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="itemContainer9Optimized" layoutOrientation="horizontal" isGroup="false" verticalAlign="middle">
+            <container id="itemContainer38Optimized" layoutOrientation="vertical" isGroup="false" verticalAlign="top" itemSpacing="0">
+              <button id="lineToolButtonItemOptimized" size="small" command="Line" />
+              <button id="tangentLinebuttonItemOptimized" size="small" command="TangentLine" />
+              <button id="tangentArcButtonItemOptimized" size="small" command="TangentArc" />
+            </container>
+            <container id="itemContainer39Optimized" layoutOrientation="vertical" isGroup="false" verticalAlign="top" itemSpacing="0">
+              <button id="rectangleButtonItemOptimized" size="small" command="Rect" />
+              <button id="threePointRectangleButtonItemOptimized" size="small" command="ThreePointRectangle" />
+              <button id="ellipseButtonItemOptimized" size="small" command="Ellipse" />
+            </container>
+            <container id="itemContainer40Optimized" layoutOrientation="vertical" isGroup="false" verticalAlign="top" itemSpacing="0">
+              <button id="circleButtonItemOptimized" size="small" command="Circle" />
+              <button id="threePointCircleButtonItemOptimized" size="small" command="ThreePointCircle" />
+              <button id="sweepArcButtonItemOptimized" label="Sweep Arc" size="small" command="SweepArc" />
+            </container>
+            <container id="itemContainer42Optimized" layoutOrientation="vertical" isGroup="false" verticalAlign="top" itemSpacing="0">
+              <button id="contructionCircleButtonItemOptimized" size="small" command="ConstructionCircle" />
+              <button id="splineButtonItemOptimized" size="small" command="Spline" />
+              <button id="threePointArcButtonItemOptimized" size="small" command="ThreePointArc" />
+            </container>
+            <container id="itemContainer41Optimized" layoutOrientation="vertical" isGroup="false" verticalAlign="top" itemSpacing="0">
+              <button id="contructionLineButtonItemOptimized" size="small" command="ConstructionLine" />
+              <button id="pointButtonItemOptimized" size="small" command="Point" />
+              <button id="projectToSketchButtonItemOptimized" size="small" command="ProjectToSketch" />
+            </container>
+          </container>
+          <container id="itemContainer19Optimized" layoutOrientation="horizontal" isGroup="true" verticalAlign="middle" itemSpacing="0">
+            <container id="itemContainer17Optimized" layoutOrientation="vertical" isGroup="false" verticalAlign="top" itemSpacing="0">
+              <button id="trimCornerButtonItemOptimized" size="small" command="TrimCorner" />
+              <button id="trimExtendButtonItem2Optimized" size="small" command="TrimExtend" />
+              <button id="splitTrimbuttonItemOptimized" size="small" command="SplitOneCurve" />
+            </container>
+            <container id="itemContainer18Optimized" layoutOrientation="vertical" isGroup="false" verticalAlign="top" itemSpacing="0">
+              <button id="curveOffsetButtonItemOptimized" size="small" command="CurveOffset" />
+              <button id="trimFilletButtonItemOptimized" size="small" command="Fillet2D" />
+            </container>
+          </container>
+          <container id="itemContainer11Optimized" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="0">
+            <button id="createDatumPlaneButtonItemOptimized" size="small" command="CreateRefDatum" />
+            <button id="createDatumLineButtonItemOptimized" size="small" command="CreateDatumLine" />
+            <button id="coordinateSystemButtonItemOptimized" size="small" command="CreateCoordinateSystem" />
+          </container>
+        </group>
+        <group id="solidsRibbonBarOptimized" layoutOrientation="horizontal" itemSpacing="1">
+          <button id="selectButtonItemOptimized" style="imageandtext" size="large" command="Select" />
+          <button id="pullToolLargeButtonItemOptimized" style="imageandtext" size="large" command="PullTool" commandAttributes="LargeImage" />
+          <button id="transformToolLargeButtonItemOptimized" style="imageandtext" size="large" command="Transform" />
+          <button id="healButtonItemOptimized" style="imageandtext" size="large" command="Fill" />
+          <button id="intersectToolButtonItemOptimized" style="imageandtext" size="large" command="IntersectTool" />
+          <container id="editBlendItemOptimized" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="3">
+            <button id="bendToolbuttonItemOptimized" size="small" command="Bend" />
+            <button id="editBlendButtonItemOptimized" size="small" command="EditBlendTool" />
+          </container>
+        </group>
+        <group id="insertRibbonBarOptimized" layoutOrientation="horizontal" itemSpacing="1">
+          <container id="itemContainer28Optimized" layoutOrientation="vertical" isGroup="false" verticalAlign="top" itemSpacing="0">
+            <button id="splitBodyButtonItemOptimized" size="small" command="SplitBodyTool" />
+            <button id="splitFaceButtonItemOptimized" size="small" command="SplitFace" />
+            <button id="projectToSolidbuttonItemOptimized" size="small" command="ProjectToSolid" />
+          </container>
+          <container id="itemContainer22Optimized" layoutOrientation="vertical" isGroup="false" verticalAlign="middle" itemSpacing="0">
+            <button id="makeShellButtonItemOptimized" size="small" command="ShellTool" />
+            <button id="thinToolButtonOptimized" size="small" command="ThinTool" />
+            <button id="mirrorButtonItemOptimized" size="small" command="Mirror" />
+          </container>
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

@@ -1,0 +1,335 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="CopyCurvesHint" xml:space="preserve">
+    <value>Creates curve copies of the edges of selected faces, removing duplicate edges.</value>
+  </data>
+  <data name="CopyCurvesText" xml:space="preserve">
+    <value>Copy Curves</value>
+  </data>
+  <data name="CreateAnimateCommandHint" xml:space="preserve">
+    <value>I forget what this does.</value>
+  </data>
+  <data name="CreateAnimateCommandText" xml:space="preserve">
+    <value>Animate</value>
+  </data>
+  <data name="CreateFigure8CommandHint" xml:space="preserve">
+    <value>Make a figure 8 Kein bottle.</value>
+  </data>
+  <data name="CreateFigure8CommandText" xml:space="preserve">
+    <value>Figure 8</value>
+  </data>
+  <data name="LawsonCreateCommandHint" xml:space="preserve">
+    <value>Make a Lawson Klein bottle.</value>
+  </data>
+  <data name="LawsonCreateCommandText" xml:space="preserve">
+    <value>Lawson</value>
+  </data>
+  <data name="EdgeOffsetFieldText" xml:space="preserve">
+    <value>Offset</value>
+  </data>
+  <data name="EdgeTabHint" xml:space="preserve">
+    <value>Create a single tab on the end of an edge strip.</value>
+  </data>
+  <data name="EdgeTabText" xml:space="preserve">
+    <value>Tab on Edge</value>
+  </data>
+  <data name="FlipTabsHint" xml:space="preserve">
+    <value>Flip the side of the curve on which the Tabs are created.</value>
+  </data>
+  <data name="FlipTabsText" xml:space="preserve">
+    <value>Flip Tabs</value>
+  </data>
+  <data name="LawsonToolHint" xml:space="preserve">
+    <value>Get ready for the zany Lawson Tool.</value>
+  </data>
+  <data name="LawsonToolText" xml:space="preserve">
+    <value>Adjust</value>
+  </data>
+  <data name="MakeTabsHint" xml:space="preserve">
+    <value>Add Tabs to a chain of curve segments.</value>
+  </data>
+  <data name="MakeTabsText" xml:space="preserve">
+    <value>Make Tabs</value>
+  </data>
+  <data name="OffsetEdgesHint" xml:space="preserve">
+    <value>Offset edges in the direction of the average normal.</value>
+  </data>
+  <data name="OffsetEdgesText" xml:space="preserve">
+    <value>Offset Edges</value>
+  </data>
+  <data name="StartSlotHint" xml:space="preserve">
+    <value>"Start with a slot rather than with a tab.</value>
+  </data>
+  <data name="StartSlotText" xml:space="preserve">
+    <value>Start with Slot</value>
+  </data>
+  <data name="TabGroupText" xml:space="preserve">
+    <value>Tabs</value>
+  </data>
+  <data name="TabText" xml:space="preserve">
+    <value>UnfoldMore</value>
+  </data>
+  <data name="ExcelAngleHint" xml:space="preserve">
+    <value>Record the angle between the endpoints of the selected curves.</value>
+  </data>
+  <data name="ExcelAngleText" xml:space="preserve">
+    <value>Angle</value>
+  </data>
+  <data name="ExcelGroupText" xml:space="preserve">
+    <value>Excel</value>
+  </data>
+  <data name="ExcelLengthHint" xml:space="preserve">
+    <value>Record the length of the selected curves.</value>
+  </data>
+  <data name="ExcelLengthText" xml:space="preserve">
+    <value>Length</value>
+  </data>
+  <data name="ExcelResetHint" xml:space="preserve">
+    <value>Reset to cell A1.</value>
+  </data>
+  <data name="ExcelResetText" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="WilfGroupText" xml:space="preserve">
+    <value>Wilf</value>
+  </data>
+  <data name="WilfHint" xml:space="preserve">
+    <value>Create Herb Wilf's Tree.</value>
+  </data>
+  <data name="WilfText" xml:space="preserve">
+    <value>Wilf</value>
+  </data>
+  <data name="CreateDashesText" xml:space="preserve">
+    <value>Create Dashes</value>
+  </data>
+  <data name="DetectCollisionsText" xml:space="preserve">
+    <value>Detect Collisions</value>
+  </data>
+  <data name="LawsonRelaxHint" xml:space="preserve">
+    <value>Relax Lawson Tabs</value>
+  </data>
+  <data name="LawsonRelaxText" xml:space="preserve">
+    <value>Relax</value>
+  </data>
+  <data name="LawsonTabAngleForce" xml:space="preserve">
+    <value>Tab Angle</value>
+  </data>
+  <data name="LawsonUAngleForce" xml:space="preserve">
+    <value>U Angle</value>
+  </data>
+  <data name="LawsonVAlignmentForce" xml:space="preserve">
+    <value>V Align</value>
+  </data>
+  <data name="LawsonVAverageForce" xml:space="preserve">
+    <value>V Average</value>
+  </data>
+  <data name="LawsonTabAngleAverageForce" xml:space="preserve">
+    <value>Tab Average</value>
+  </data>
+  <data name="LawsonUTouchForce" xml:space="preserve">
+    <value>U Touch</value>
+  </data>
+  <data name="AnnotationLayerName" xml:space="preserve">
+    <value>Annotations</value>
+  </data>
+  <data name="AnnotationPlaneName" xml:space="preserve">
+    <value>Plane</value>
+  </data>
+  <data name="AnnotationPlanesLayerName" xml:space="preserve">
+    <value>Annotation Planes</value>
+  </data>
+  <data name="FlatCuttingLinesLayerName" xml:space="preserve">
+    <value>Cutting Lines</value>
+    <comment>Verify the same as in MyNesting</comment>
+  </data>
+  <data name="FlatFaceLayerName" xml:space="preserve">
+    <value>Flat Bodies</value>
+  </data>
+  <data name="FlatFaceName" xml:space="preserve">
+    <value>Flat Face</value>
+  </data>
+  <data name="FlatMediumEngravingLayerName" xml:space="preserve">
+    <value>Medium Engraving</value>
+    <comment>Verify the same as in MyNesting</comment>
+  </data>
+  <data name="DiscreteTabText" xml:space="preserve">
+    <value>Discrete</value>
+  </data>
+  <data name="GyroidGroupText" xml:space="preserve">
+    <value>Gyroid</value>
+  </data>
+  <data name="GyroidRelaxHint" xml:space="preserve">
+    <value>Attempts to relax to the gyroid minimal surface.</value>
+  </data>
+  <data name="GyroidRelaxText" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="ProceduralGroupText" xml:space="preserve">
+    <value>Procedural</value>
+  </data>
+  <data name="LawsonCircleCommandHint" xml:space="preserve">
+    <value>Creat Lawson circle.</value>
+  </data>
+  <data name="LawsonCircleCommandText" xml:space="preserve">
+    <value>Lawson Circle</value>
+  </data>
+  <data name="BoyToolHint" xml:space="preserve">
+    <value>Generate the 3-fold Boy surface, a projective plane embedded in R3.</value>
+  </data>
+  <data name="BoyToolText" xml:space="preserve">
+    <value>Boy Tool</value>
+  </data>
+  <data name="CreatePoincareDiskCommandHint" xml:space="preserve">
+    <value>Make a Poincare Disk.</value>
+  </data>
+  <data name="CreatePoincareDiskCommandText" xml:space="preserve">
+    <value>Poincare Disk</value>
+  </data>
+  <data name="Lenticular" xml:space="preserve">
+    <value>Lenticular</value>
+  </data>
+  <data name="LenticularInterlaceCount" xml:space="preserve">
+    <value>Interlace Slices</value>
+  </data>
+  <data name="LenticularInterlaceWidth" xml:space="preserve">
+    <value>Interlace Width</value>
+  </data>
+  <data name="LenticularPlanar" xml:space="preserve">
+    <value>Planar</value>
+  </data>
+  <data name="LenticularPlanarCommandHint" xml:space="preserve">
+    <value>Create planar lenticular image.</value>
+  </data>
+  <data name="LenticularPlanarCommandText" xml:space="preserve">
+    <value>Planar</value>
+  </data>
+  <data name="LenticularSweepAngle" xml:space="preserve">
+    <value>Sweep Angle</value>
+  </data>
+  <data name="LenticularCylindricalCommandHint" xml:space="preserve">
+    <value>Make a cylindrical lenticular thingie.</value>
+  </data>
+  <data name="LenticularCylindricalCommandText" xml:space="preserve">
+    <value>Cylindrical</value>
+  </data>
+  <data name="TabsGroupText" xml:space="preserve">
+    <value>Tabs</value>
+  </data>
+</root>

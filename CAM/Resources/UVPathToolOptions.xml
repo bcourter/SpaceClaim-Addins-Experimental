@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<customUI xmlns="http://schemas.spaceclaim.com/customui">
+  <panel>
+    <group id="UVPathToolGroup" label="Profile Options">
+      <container id="UVPathToolContainer" layoutOrientation="vertical">
+        <container id="FaceToolPathToolStrategyContainer" layoutOrientation="horizontal">
+          <label id="FaceToolPathToolStrategyLabel" text="Strategy:" width="40"/>
+          <comboBox id="FaceToolPathToolStrategyList" command="FaceToolPathToolStrategyList" textEditable="false" type="default" width="130"/>
+        </container>
+        <container id="UVPathToolContainerColor" layoutOrientation="horizontal">
+          <label id="UVPathToolColorLabel" text="Color:" width="40"/>
+          <comboBox id="UVPathToolColorList" command="UVPathToolColorList" textEditable="false" type="default" width="130"/>
+        </container>
+        <container id="UVPathToolContainerRadius" layoutOrientation="horizontal">
+          <label id="UVPathToolLineWidthLabel" text="Radius:" width="50"/>
+          <slider id="UVPathToolRadiusSlider" command="UVPathToolRadiusSlider" labelVisible="false"/>
+        </container>
+        <container id="UVPathToolContainerStepSize" layoutOrientation="horizontal">
+          <label id="UVPathToolLineStepSizeLabel" text="Step:" width="50"/>
+          <slider id="UVPathToolStepSizeSlider" command="UVPathToolStepSizeSlider" labelVisible="false"/>
+        </container>
+        <container id="UVPathToolContainerAnimate" layoutOrientation="horizontal">
+          <label id="UVPathToolAnimateLabel" text="Animate:" width="50"/>
+          <button id="UVPathToolAnimateStepButton" command="UVPathToolAnimateStepButton" />
+          <button id="UVPathToolAnimatePlayButton" command="UVPathToolAnimatePlayButton" />
+        </container>
+        <container id="UVPathToolContainerAnimate" layoutOrientation="horizontal">
+          <label id="UVPathToolAnimateLabel" text="Create:" width="50"/>
+          <button id="UVPathToolCreateSpheres" command="UVPathToolCreateSpheres" />
+        </container>
+      </container>
+    </group>
+  </panel>
+</customUI>

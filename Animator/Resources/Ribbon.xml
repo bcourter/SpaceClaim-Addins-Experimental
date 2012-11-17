@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<customUI xmlns="http://schemas.spaceclaim.com/customui">
+	<ribbon>
+		<tabs>
+			<tab id="AnimatorTab" label="Animator">
+        <group id="AnimatorTransportGroup" label="Transport" layoutOrientation="horizontal" itemSpacing="1">
+            <button id="Animator.Play" size="large" command="Animator.Play" />
+            <button id="Animator.Reset" size="large" command="Animator.Reset" />
+        </group>
+        <group id="AnimatorToolGroup" label="Transport" layoutOrientation="horizontal" itemSpacing="1">
+            <button id="Animator.OscillatorTool" size="large" command="Animator.OscillatorTool" />
+        </group>
+        <group id="AnimatorMovieGroup" label="Transport" layoutOrientation="horizontal" itemSpacing="1">
+          <button id="Animator.RecordMovie" size="large" command="Animator.RecordMovie" />
+        </group>
+      </tab>
+		</tabs>
+	</ribbon>
+</customUI>

@@ -1,0 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<AddIns>
+	<AddIn name="Tracker" description="Track points captured by cameras." assembly="Tracker.dll" typename="SpaceClaim.AddIn.Tracker.AddIn" host="SameAppDomain"/>
+</AddIns>

@@ -1,0 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<AddIns>
+  <AddIn name="Animator" description="Animation AddIn" assembly="Animator.dll" typename="SpaceClaim.AddIn.Animator.AnimatorAddIn" host="SameAppDomain"/>
+</AddIns>

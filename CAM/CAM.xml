@@ -1,0 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<AddIns>
+	<AddIn name="Unfold" description="A very experimental CAM system." assembly="CAM.dll" typename="SpaceClaim.AddIn.CAM.AddIn" host="SameAppDomain"/>
+</AddIns>

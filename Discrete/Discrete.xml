@@ -1,0 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<AddIns>
+	<AddIn name="Discrete" description="Experiments in discretizations." assembly="Discrete.dll" typename="SpaceClaim.AddIn.Discrete.AddIn" host="SameAppDomain"/>
+</AddIns>

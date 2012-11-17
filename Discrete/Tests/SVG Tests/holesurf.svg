@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--SVG written from SpaceClaim using AECollection Unfold Add-In-->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" "">
+<svg width="32mm" height="22mm" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <g transform="scale(2834.64566929134,-2834.64566929134)" style="fill-rule:nonzero; stroke-linecap:round; stroke-linejoin:round;">
+    <g transform="translate(0.022,-0.013)">
+      <path d="M-0.006,0.005 L-0.006,0.001 L-0.013,0.001 L-0.013,0.005 L-0.006,0.005 Z " style="stroke:rgb(143,175,143); stroke-width:1; fill:rgb(143,175,143); fill-opacity:0.498039215686275" />
+      <path d="M0.01,0.013 L0.01,-0.009 L0.01,0.013 L-0.022,0.013 L-0.022,-0.009 Z " style="stroke:rgb(143,175,143); stroke-width:1; fill:rgb(143,175,143); fill-opacity:0.498039215686275" />
+    </g>
+  </g>
+</svg>

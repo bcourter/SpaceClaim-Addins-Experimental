@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--SVG written from SpaceClaim using AECollection Unfold Add-In-->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" "">
+<svg width="73.4069535482194mm" height="58.8623861687614mm" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <g transform="scale(2834.64566929134,-2834.64566929134)">
+    <g transform="translate(0.0164069535482194,-0.0488623861687614)">
+      <ellipse transform="translate(0 0) rotate(0)" rx="0.01" ry="0.01" style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <ellipse transform="translate(0.013 0.007) rotate(0)" rx="0.013" ry="0.00400000000000002" style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.042,0.015 L0.052,0.015 " style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.057,0.01 L0.057,0 " style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.057,0 L0.037,0 " style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.037,0 L0.037,0.01 " style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.037,0.01 A0.005,0.005 180 0,0 0.042,0.015" style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.057,0.01 A0.005,0.005 0 0,1 0.052,0.015" style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <ellipse transform="translate(-0.0105172209268743 0.03) rotate(-90)" rx="0.00728010988928052" ry="0.00588973262134506" style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <ellipse transform="translate(0.00566311896062463 0.032) rotate(-83.7284939950137)" rx="0.00823180908980685" ry="0.00575563925361172" style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.0271457638284899,0.0473083767755929 L0.0325717888626898,0.0356916232244071 " style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.0316514399401817,0.0314459906068315 L0.0275065778087482,0.0284880338717126 " style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.0240717888692569,0.0296256477029512 L0.0186457638350571,0.041242401254137 " style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.0195661127575652,0.0454880338717126 L0.0237109748889987,0.0484459906068315 " style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.0240717888692569,0.0296256477029512 A0.00310801878633699,0.00251444001698323 90 0,1 0.0275065778087482,0.0284880338717126" style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.0316514399401817,0.0314459906068315 A0.003108018786337,0.00251444001698323 90 0,1 0.0325717888626898,0.0356916232244071" style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.0271457638284899,0.0473083767755929 A0.00310801878633701,0.00251444001698324 90 0,1 0.0237109748889987,0.0484459906068315" style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+      <path d="M0.0195661127575652,0.0454880338717126 A0.00310801878633702,0.00251444001698325 90 0,1 0.0186457638350571,0.041242401254137" style="stroke:rgb(143,175,143); fill:none; stroke-width:1" />
+    </g>
+  </g>
+</svg>

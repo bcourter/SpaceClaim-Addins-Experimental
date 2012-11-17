@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--SVG written from SpaceClaim using AECollection Unfold Add-In-->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" "">
+<svg width="20mm" height="10mm" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <g transform="scale(2834.64566929134,-2834.64566929134)">
+    <g transform="translate(-0.01,-0.02)">
+      <path d="M0.01 0.01 L0.03 0.01 " stroke="rgb(143,175,143)" />
+      <path d="M0.03 0.01 L0.03 0.02 " stroke="rgb(143,175,143)" />
+      <path d="M0.03 0.02 L0.01 0.02 " stroke="rgb(143,175,143)" />
+      <path d="M0.01 0.02 L0.01 0.01 " stroke="rgb(143,175,143)" />
+      <path d="M0.011 0.011 L0.014 0.0118038475772934 " stroke="rgb(143,175,143)" />
+      <path d="M0.014 0.0118038475772934 L0.0135031948758423 0.0136579495421106 " stroke="rgb(143,175,143)" />
+      <path d="M0.0135031948758423 0.0136579495421106 L0.0105031948758423 0.0128541019648172 " stroke="rgb(143,175,143)" />
+      <path d="M0.0105031948758423 0.0128541019648172 L0.011 0.011 " stroke="rgb(143,175,143)" />
+    </g>
+  </g>
+</svg>

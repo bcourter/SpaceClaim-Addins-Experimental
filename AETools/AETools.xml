@@ -1,0 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<AddIns>
+  <AddIn name="AETools" description="SpaceClaim AE Tools" assembly="AETools.dll" typename="SpaceClaim.AddIn.AETools.AddIn" host="SameAppDomain"/>
+</AddIns>
