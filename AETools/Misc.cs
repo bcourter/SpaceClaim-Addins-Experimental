@@ -171,7 +171,7 @@ namespace SpaceClaim.AddIn.AETools {
 #if true // planar offset
             const double inches = 25.4 / 1000;
 
-            const double webWidth = 0.125 * inches;
+            const double webWidth = (double)3 / 32 * inches;
 
             const double circuitBoardBandThickness = 0.001;
             const double circuitBoardBandWidth = 0.01;
@@ -187,7 +187,8 @@ namespace SpaceClaim.AddIn.AETools {
             const double focusApexWidth = 0.5 * inches;
             const double focusRootThickness = 0.25 * inches;
 
-            const double domeMaterialThickness = (double)11 / 16 - 0.049; // McMaster 8560K367	
+            const double domeMaterialThickness = 0.75; //   http://www.interstateplastics.com/Clear-Acrylic-Cast-Paper-Sheet-ACRCLCP.php?sku=ACRCLCP&vid=201211180031-7p&dim2=48&dim3=48&thickness=0.750&qty=1
+   //         const double domeMaterialThickness = (double)11 / 16 - 0.049; // McMaster 8560K367	
             const double domeHeight = (double)7 / 16 * inches;
             const double domeApexThickness = (double)3 / 16 * inches;
             const double domeRootThickness = (double)4 / 16 * inches;
@@ -395,21 +396,22 @@ namespace SpaceClaim.AddIn.AETools {
                 outside.Subtract(new[] { hole });
 
                 newParabolas = newParabolas.Select(f => tracker.GetSurvivors(f).First()).ToArray();
-                newParabolaBottom =  tracker.GetSurvivors(newParabolaBottom).First();
+                newParabolaBottom = tracker.GetSurvivors(newParabolaBottom).First();
 
                 desBody = DesignBody.Create(part, "Reflector", outside);
                 desBody.Layer = reflectorLayer;
 
-                var bottommingTool = new BallMill(0.125 * inches, 2 * inches);
-                var bottommingParams = new CuttingParameters(bottommingTool.Radius, 1, 0.25 * inches);
+                var smallerBall = new BallMill((double)3/32 * inches, 2 * inches);
+                var contouringParams = new CuttingParameters(smallerBall.Radius, 1, 0.25 * inches);
+                var bottommingParams = new CuttingParameters(smallerBall.Radius / 2, 1, 0.25 * inches);
 
                 foreach (Face face in newParabolas) {
-                    var toolPath = new UVToolPath(face, bottommingTool, bottommingParams);
-                    ToolPathObject.Create(desBody.Faces.Where(f => f.Shape == face).First(), toolPath, System.Drawing.Color.Black);
+                    var toolPath = new UVToolPath(face, smallerBall, contouringParams);
+                    ToolPathObject.Create(desBody.Faces.Where(f => f.Shape == face).First(), toolPath, System.Drawing.Color.DarkCyan);
                 }
 
-                var bottommingToolPath = new BottomToolPath(newParabolaBottom, bottommingTool, bottommingParams);
-                ToolPathObject.Create(desBody.Faces.Where(f => f.Shape == newParabolaBottom).First(), bottommingToolPath, System.Drawing.Color.Black);
+                var bottommingToolPath = new BottomToolPath(newParabolaBottom, smallerBall, bottommingParams);
+                ToolPathObject.Create(desBody.Faces.Where(f => f.Shape == newParabolaBottom).First(), bottommingToolPath, System.Drawing.Color.DarkOrange);
 
                 //   Body insideTop = ArcLoft(domeHeight, cell.Center, insetBody);
                 Matrix m = Matrix.CreateTranslation(Direction.DirZ * domeRootThickness);

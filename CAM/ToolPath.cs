@@ -40,20 +40,25 @@ namespace SpaceClaim.AddIn.CAM {
             return Point.Create(point.X, point.Y, CuttingParameters.RestZ);
         }
 
-        public IList<CutterLocation> GetCurves(out IList<CurveSegment> cutterCurves, out IList<CurveSegment> rapidCurves) {
+        public IList<CutterLocation> GetCurves(out IList<CurveSegment> cutterCurves, out IList<CurveSegment> rapidCurves, out IList<CurveSegment> arrowCurves) {
             CutterLocation[] cutterLocations = GetCutterLocations().ToArray();
             cutterCurves = new List<CurveSegment>();
             rapidCurves = new List<CurveSegment>();
+            arrowCurves = new List<CurveSegment>();
+
             for (int i = 0; i < cutterLocations.Length - 1; i++) {
                 CurveSegment curve = CurveSegment.Create(cutterLocations[i].Point, cutterLocations[i + 1].Point);
                 //Debug.Assert(curve != null);
                 if (curve == null)
                     continue;
 
-                if (cutterLocations[i].IsRapid || cutterLocations[i + 1].IsRapid)
-                    (rapidCurves as List<CurveSegment>).Add(curve);
+                if (cutterLocations[i].IsRapid)
+                    rapidCurves.Add(curve);
                 else
-                    (cutterCurves as List<CurveSegment>).Add(curve);
+                    cutterCurves.Add(curve);
+
+                if (cutterLocations[i].IsRapid ^ !cutterLocations[i + 1].IsRapid)
+                    arrowCurves.Add(curve);
             }
 
             return cutterLocations;
@@ -217,7 +222,7 @@ namespace SpaceClaim.AddIn.CAM {
 
             var points = new List<Point>();
             for (int i = 0; i < Count; i++) {
-                double v = startV + (double)i / (Count - 1) * (endV - startV);
+                double v = Count < 2 ? (startV + endV) / 2 : startV + (double)i / (Count - 1) * (endV - startV);
                 points = GetChainAtV(v).ToList();
                 if (points.Count < 1)
                     continue;
@@ -252,6 +257,9 @@ namespace SpaceClaim.AddIn.CAM {
     public class BottomToolPath : FaceToolPath {
         const int testSteps = 32;
         const double increment = 0.001;
+        Vector centerOffset;
+        Vector tip;
+        Vector closeClearanceVector;
 
         public BottomToolPath(Face face, CuttingTool tool, CuttingParameters parameters)
             : base(face, tool, parameters) {
@@ -259,13 +267,18 @@ namespace SpaceClaim.AddIn.CAM {
             if (plane == null)
                 throw new NotImplementedException();
 
+            SurfaceEvaluation eval = face.Geometry.Evaluate(PointUV.Origin);
+            centerOffset = eval.Normal * CuttingTool.Radius;
+            tip = -Direction.DirZ * CuttingTool.Radius;
+            closeClearanceVector = Direction.DirZ * CuttingTool.Radius;
+
             Debug.Assert(face.Loops.Where(l => l.IsOuter).Count() == 1);
         }
 
         public IList<Point> GetPoints(ICollection<ITrimmedCurve> curves) {
             var profile = new List<Point>();
             foreach (ITrimmedCurve curve in new TrimmedCurveChain(curves).SortedCurves)
-                profile.AddRange(curve.TessellateCurve(increment));
+                profile.AddRange(curve.TessellateCurve(increment).Select(p => p + centerOffset));
 
             return profile;
         }
@@ -283,47 +296,76 @@ namespace SpaceClaim.AddIn.CAM {
 
             return profiles;
         }
-#if false
+#if true
         private ChainTreeNode BuildChainTreeNodes() {
             var positions = new List<IList<Point>>();
             Vector toCenter = Direction.DirZ * CuttingTool.Radius;
 
-            ChainTreeNode root = new ChainTreeNode(null, face);
+            ChainTreeNode root = face.Loops.Where(l => l.IsOuter).Select(l => l.Edges).Select(c => new ChainTreeNode(null, c.Cast<ITrimmedCurve>().ToArray())).First();  // TBD get inner loops working
             RecurseBuildChainTreeNodes(root, CuttingTool.Radius, 0);
             return root;
         }
 
         private void RecurseBuildChainTreeNodes(ChainTreeNode parent, double offset, int depth) {
-            Debug.Assert(depth < 22, "Exceeded max depth");
+            Debug.Assert(depth < 33, "Exceeded max depth");
+            if (depth >= 33)
+                return;
 
-            foreach (ChainTreeNode node in parent.Face.OffsetFaceEdgesInward(offset, OffsetCornerType.Round).Select(f => new ChainTreeNode(parent, f)))
+            ChainTreeNode[] children = parent.OrderedCurves
+                .OffsetChainInward(face, -offset, OffsetCornerType.Round)
+                .ExtractChains()
+                .Select(c => new ChainTreeNode(parent, c))
+                .ToArray();
+
+            foreach (ChainTreeNode node in children)
                 RecurseBuildChainTreeNodes(node, CuttingParameters.StepOver, ++depth);
         }
 
-        private List<CutterLocation> RecurseDescendChainTreeNodes(List<CutterLocation> previousLocations, ChainTreeNode parent) {
-            Vector tip = -Direction.DirZ * CuttingTool.Radius;
-            foreach (ChainTreeNode node in parent.Children) {
-                previousLocations.AddRange(GetPoints(new TrimmedCurveChain(parent.Face.Edges.Cast<ITrimmedCurve>().ToArray()).SortedCurves).Select(p => new CutterLocation(p, tip, false)));
-                previousLocations.AddRange(RecurseDescendChainTreeNodes(previousLocations, node));
-            }
+        bool isOnSpiral = false;
+        private void RecurseDescendChainTreeNodes(List<CutterLocation> locations, ChainTreeNode parent) {
+            Point initialPoint = locations.Count == 0 ? Point.Origin : locations[locations.Count - 1].Center;
+            ChainTreeNode[] nodes = parent.Children.OrderBy(n => (n.OrderedCurves.First().StartPoint - initialPoint).Magnitude).ToArray();
 
-            return previousLocations;
+            foreach (ChainTreeNode node in nodes) {
+                IList<Point> points = GetPoints(node.OrderedCurves).RemoveAdjacentDuplicates();
+                Point startPoint = points[0];
+                Point endPoint = points[points.Count - 1];
+
+                if (!isOnSpiral)
+                    locations.Add(new CutterLocation(Point.Create(startPoint.X, startPoint.Y, CuttingParameters.RestZ), tip, true));
+
+                isOnSpiral = true;
+
+                locations.Add(new CutterLocation(startPoint + closeClearanceVector, tip, true));
+                locations.AddRange(points.Select(p => new CutterLocation(p, tip, false)));
+                locations.Add(new CutterLocation(endPoint + closeClearanceVector, tip, true));
+
+                RecurseDescendChainTreeNodes(locations, node);
+                isOnSpiral = false;
+
+                locations.Add(new CutterLocation(Point.Create(locations[locations.Count - 1].Center.X, locations[locations.Count - 1].Center.Y, CuttingParameters.RestZ), tip, true));
+            }
         }
 
         public override IList<CutterLocation> GetCutterLocations() {
-            return RecurseDescendChainTreeNodes(new List<CutterLocation>(), BuildChainTreeNodes());
+            var root = BuildChainTreeNodes();
+            var locations = new List<CutterLocation>();
+            RecurseDescendChainTreeNodes(locations, root);
+            return locations;
         }
 
         private class ChainTreeNode {
             public ChainTreeNode Parent { get; private set; }
             public IList<ChainTreeNode> Children { get; private set; }
-            public Face Face { get; private set; }
+            public IList<ITrimmedCurve> OrderedCurves { get; private set; }
 
-            public ChainTreeNode(ChainTreeNode parent, Face face) {
+            public ChainTreeNode(ChainTreeNode parent, IList<ITrimmedCurve> orderedCurves) {
                 Parent = parent;
                 Children = new List<ChainTreeNode>();
-                Children.Add(this);
-                Face = face;
+                if (parent != null) // root
+                    Parent.Children.Add(this);
+
+                OrderedCurves = orderedCurves;
             }
         }
 

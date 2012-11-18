@@ -139,8 +139,8 @@ namespace SpaceClaim.AddIn.CAM {
 
         void UpdateRendering(CancellationToken token) {
             Face face = desFace.Shape;
-            Graphic shadedGraphic, curveGraphic;
-            GetGraphics(toolPath, out curveGraphic, out shadedGraphic);
+            Graphic curveGraphic, arrowGraphic;
+            GetGraphics(toolPath, out curveGraphic, out arrowGraphic);
             GraphicStyle style;
 
             Color transparentColor = Color.FromArgb(44, color);
@@ -192,10 +192,11 @@ namespace SpaceClaim.AddIn.CAM {
             Rendering = Graphic.Create(style, null, new[] { prehighlightedShell, selectedShell });
         }
 
-        public static void GetGraphics(ToolPath toolPath, out Graphic curveGraphic, out Graphic shadedGraphic) {
+        public static void GetGraphics(ToolPath toolPath, out Graphic curveGraphic, out Graphic arrowGraphic) {
             IList<CurveSegment> cutterCurves;
             IList<CurveSegment> rapidCurves;
-            IList<CutterLocation> cutterLocations = toolPath.GetCurves(out cutterCurves, out rapidCurves);
+            IList<CurveSegment> arrowCurves;
+            IList<CutterLocation> cutterLocations = toolPath.GetCurves(out cutterCurves, out rapidCurves, out arrowCurves);
 
             var style = new GraphicStyle {
                 LineWidth = 2
@@ -209,12 +210,13 @@ namespace SpaceClaim.AddIn.CAM {
 
             curveGraphic = Graphic.Create(null, null, new[] { cutterGraphic, rapidGraphic });
 
-            shadedGraphic = null;
-            //var meshPrimitive = toolPath.CuttingTool.GetPrimitive();
-            //shadedGraphic = Graphic.Create(null, null, cutterLocations.Select(c =>
-            //    Graphic.Create(null, new[] { meshPrimitive }, null,
-            //            Matrix.CreateTranslation(c.Point.Vector)
-            // )).ToArray());
+            //style = new GraphicStyle {
+            //    IsFlatOn = true,
+            //    IsPixelSpace = true,
+            //    LineWidth = 1
+            //};
+            //arrowGraphic = Graphic.Create(style, arrowCurves.Select(c => ArrowPrimitive.Create(Frame.Create(c.StartPoint, (c.EndPoint - c.StartPoint).Direction), 15, 3)).ToArray());
+            arrowGraphic = null;
         }
 
         public static IList<ToolPathObject> AllUVPaths {

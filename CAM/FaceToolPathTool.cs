@@ -460,9 +460,9 @@ namespace SpaceClaim.AddIn.CAM {
 
             Debug.Assert(toolPath != null);
 
-            Graphic curveGraphic, shadedGraphic;
-            ToolPathObject.GetGraphics(toolPath, out curveGraphic, out shadedGraphic);
-            Rendering = Graphic.Create(style, null, new[] { curveGraphic, shadedGraphic });
+            Graphic curveGraphic, arrowGraphic;
+            ToolPathObject.GetGraphics(toolPath, out curveGraphic, out arrowGraphic);
+            Rendering = Graphic.Create(style, null, new[] { curveGraphic, arrowGraphic });
 
             return false; // if we return true, the preselection won't update
         }
