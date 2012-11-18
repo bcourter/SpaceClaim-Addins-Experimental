@@ -147,7 +147,7 @@ namespace SpaceClaim.AddIn.CAM {
             Color selectedColor = Color.FromArgb(transparentColor.A, transparentColor.R / 2, transparentColor.G / 2, transparentColor.B / 2);
             Color prehighlightColor = Color.FromArgb(transparentColor.A, 255 - (255 - transparentColor.R) / 2, 255 - (255 - transparentColor.G) / 2, 255 - (255 - transparentColor.B) / 2);
             Color curveColor = Color.FromArgb(255, selectedColor);
-            Color curvePrehighlightColor = Color.FromArgb(255, transparentColor);
+            Color curvePrehighlightColor = Color.FromArgb(255, prehighlightColor);
 
             //// nucleus
             ////style = new GraphicStyle {

@@ -319,9 +319,17 @@ namespace SpaceClaim.AddIn.CAM {
         void strategyCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
             strategy = StrategyComboBox.Value;
 
-            ToolPathObject toolPath = SelectedToolPath;
-            if (toolPath != null)
-                WriteBlock.ExecuteTask("Adjust color", () => toolPath.Color = color);
+            ToolPathObject toolPathObj = SelectedToolPath;
+            if (toolPath == null)
+                return;
+
+            if (strategy == "UV Contour")
+                toolPath = new UVFacingToolPath(((FaceToolPath)toolPath).Face, toolPath.CuttingTool, toolPath.CuttingParameters);
+
+            if (strategy == "Spiral")
+                toolPath = new SpiralFacingToolPath(((FaceToolPath)toolPath).Face, toolPath.CuttingTool, toolPath.CuttingParameters);
+
+            WriteBlock.ExecuteTask("Change toolpath strategy to " + strategy + ".", () => { toolPathObj.ToolPath = toolPath; toolPathObj.Regenerate(); });
         }
 
         void radiusSliderCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
@@ -337,12 +345,6 @@ namespace SpaceClaim.AddIn.CAM {
 
             ToolPathObject toolPathObj = SelectedToolPath;
             if (toolPathObj != null) {
-                if (strategy == "UV Contour")
-                    toolPath = new UVToolPath(((FaceToolPath)toolPath).Face, toolPath.CuttingTool, toolPath.CuttingParameters);
-
-                if (strategy == "Spiral")
-                    toolPath = new BottomToolPath(((FaceToolPath)toolPath).Face, toolPath.CuttingTool, toolPath.CuttingParameters);
-
                 WriteBlock.ExecuteTask("Update toolpath", () => { toolPathObj.ToolPath.CuttingParameters.StepOver = stepSize; toolPathObj.Regenerate(); });
 
             }
@@ -453,10 +455,10 @@ namespace SpaceClaim.AddIn.CAM {
             var parameters = new CuttingParameters(radius, 1, 0.5 * Const.inches);
 
             if (strategy == "UV Contour")
-                toolPath = new UVToolPath(face, ballMill, parameters);
+                toolPath = new UVFacingToolPath(face, ballMill, parameters);
 
             if (strategy == "Spiral")
-                toolPath = new BottomToolPath(face, ballMill, parameters);
+                toolPath = new SpiralFacingToolPath(face, ballMill, parameters);
 
             Debug.Assert(toolPath != null);
 

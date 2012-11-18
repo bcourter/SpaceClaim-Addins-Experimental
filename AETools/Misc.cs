@@ -49,7 +49,7 @@ namespace SpaceClaim.AddIn.AETools {
             command.Updating += AddInHelper.EnabledCommand_Updating;
         }
 
-        static void XXX_Executing(object sender, EventArgs e) {
+        static void XXX_Executing(object sender, EventArgs eventArgs) {
 
 #if false // wrapping
 			Window activeWindow = Window.ActiveWindow;
@@ -188,7 +188,7 @@ namespace SpaceClaim.AddIn.AETools {
             const double focusRootThickness = 0.25 * inches;
 
             const double domeMaterialThickness = 0.75; //   http://www.interstateplastics.com/Clear-Acrylic-Cast-Paper-Sheet-ACRCLCP.php?sku=ACRCLCP&vid=201211180031-7p&dim2=48&dim3=48&thickness=0.750&qty=1
-   //         const double domeMaterialThickness = (double)11 / 16 - 0.049; // McMaster 8560K367	
+            //         const double domeMaterialThickness = (double)11 / 16 - 0.049; // McMaster 8560K367	
             const double domeHeight = (double)7 / 16 * inches;
             const double domeApexThickness = (double)3 / 16 * inches;
             const double domeRootThickness = (double)4 / 16 * inches;
@@ -401,16 +401,17 @@ namespace SpaceClaim.AddIn.AETools {
                 desBody = DesignBody.Create(part, "Reflector", outside);
                 desBody.Layer = reflectorLayer;
 
-                var smallerBall = new BallMill((double)3/32 * inches, 2 * inches);
+                var smallerBall = new BallMill((double)3 / 32 * inches, 2 * inches);
                 var contouringParams = new CuttingParameters(smallerBall.Radius, 1, 0.25 * inches);
                 var bottommingParams = new CuttingParameters(smallerBall.Radius / 2, 1, 0.25 * inches);
 
                 foreach (Face face in newParabolas) {
-                    var toolPath = new UVToolPath(face, smallerBall, contouringParams);
+                    var toolPath = new UVFacingToolPath(face, smallerBall, contouringParams);
                     ToolPathObject.Create(desBody.Faces.Where(f => f.Shape == face).First(), toolPath, System.Drawing.Color.DarkCyan);
                 }
 
-                var bottommingToolPath = new BottomToolPath(newParabolaBottom, smallerBall, bottommingParams);
+              //  var bottommingToolPath = new SpiralFacingToolPath(newParabolaBottom, newParabolaBottom.Edges.Select(e => e.Faces.Where(f => f != newParabolaBottom).First()).ToArray(), smallerBall, bottommingParams);
+                var bottommingToolPath = new SpiralFacingToolPath(newParabolaBottom, smallerBall, bottommingParams);
                 ToolPathObject.Create(desBody.Faces.Where(f => f.Shape == newParabolaBottom).First(), bottommingToolPath, System.Drawing.Color.DarkOrange);
 
                 //   Body insideTop = ArcLoft(domeHeight, cell.Center, insetBody);

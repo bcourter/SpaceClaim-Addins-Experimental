@@ -94,6 +94,7 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         public abstract IEnumerable<CurveSegment> GetProfile();
+        public abstract Vector CenterToTip { get; }
     }
 
     public class BallMill : CuttingTool {
@@ -112,5 +113,20 @@ namespace SpaceClaim.AddIn.CAM {
             return new[] { ballArc, sideLine, topLine };
         }
 
+        public override Vector CenterToTip { get { return -Radius * Direction.DirZ; } }
+
+        // http://www.mcmaster.com/#end-mills/=k7nu4a
+        public static Dictionary<string, BallMill> StandardSizes = new Dictionary<string, BallMill>() {
+            {"1/8\" x 3/8\" cut", new BallMill((double)1/8/2 * Const.inches, (double)3/ 8* Const.inches)},
+            {"3/16\" x 1/2\" cut", new BallMill((double)3/16/2 * Const.inches, (double)1/2 * Const.inches)},
+            {"1/4\" x 5/8\" cut", new BallMill((double)1/4/2 * Const.inches, (double)5/8 * Const.inches)},
+            {"5/16\" x 3/4\" cut", new BallMill((double)5/16/2 * Const.inches, (double)3/4 * Const.inches)},
+            {"3/8\" x 3/4\" cut", new BallMill((double)3/8/2 * Const.inches, (double)3/4 * Const.inches)},
+            {"7/16\" x 1\" cut", new BallMill((double)7/16/2 * Const.inches, (double)1 * Const.inches)},
+            {"1/2\" x 1\" cut", new BallMill((double)1/2/2 * Const.inches, (double)1 * Const.inches)},
+            {"9/16\" x  1-1/8\" cut", new BallMill((double)9/16/2 * Const.inches, (double)9/8 * Const.inches)},
+            {"5/8\" x  1-1/8\" cut", new BallMill((double)5/8/2 * Const.inches, (double)9/8 * Const.inches)},
+            {"3/4\" x  1-5/16\" cut", new BallMill((double)3/4/2 * Const.inches, (double)21/16 * Const.inches)}
+        };
     }
 }
