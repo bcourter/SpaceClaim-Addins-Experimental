@@ -61,6 +61,85 @@ namespace CAM.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Pause.
+        /// </summary>
+        internal static string AnimationPause {
+            get {
+                return ResourceManager.GetString("AnimationPause", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Play.
+        /// </summary>
+        internal static string AnimationPlay {
+            get {
+                return ResourceManager.GetString("AnimationPlay", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Step.
+        /// </summary>
+        internal static string AnimationStep {
+            get {
+                return ResourceManager.GetString("AnimationStep", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Create and edit UV tool paths..
+        /// </summary>
+        internal static string FaceToolPathToolButtonHint {
+            get {
+                return ResourceManager.GetString("FaceToolPathToolButtonHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to UV.
+        /// </summary>
+        internal static string FaceToolPathToolButtonText {
+            get {
+                return ResourceManager.GetString("FaceToolPathToolButtonText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to &lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; ?&gt;
+        ///&lt;customUI xmlns=&quot;http://schemas.spaceclaim.com/customui&quot;&gt;
+        ///  &lt;panel&gt;
+        ///    &lt;group id=&quot;FaceToolPathToolGroup&quot; label=&quot;Profile Options&quot;&gt;
+        ///      &lt;container id=&quot;FaceToolPathToolContainer&quot; layoutOrientation=&quot;vertical&quot;&gt;
+        ///        &lt;container id=&quot;FaceToolPathToolStrategyContainer&quot; layoutOrientation=&quot;horizontal&quot;&gt;
+        ///          &lt;label id=&quot;FaceToolPathToolStrategyLabel&quot; text=&quot;Strategy:&quot; width=&quot;40&quot;/&gt;
+        ///          &lt;comboBox id=&quot;FaceToolPathToolStrategyList&quot; command=&quot;FaceToolPathToolStrat [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string FaceToolPathToolOptions {
+            get {
+                return ResourceManager.GetString("FaceToolPathToolOptions", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Select a face to create a tool path, or select a tool path to edit it..
+        /// </summary>
+        internal static string FaceToolPathToolStatusText {
+            get {
+                return ResourceManager.GetString("FaceToolPathToolStatusText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Step Over.
+        /// </summary>
+        internal static string StepOver {
+            get {
+                return ResourceManager.GetString("StepOver", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to CAM.
         /// </summary>
         internal static string TabText {
@@ -91,70 +170,6 @@ namespace CAM.Properties {
         internal static string UVPathName {
             get {
                 return ResourceManager.GetString("UVPathName", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Pause.
-        /// </summary>
-        internal static string UVPathToolAnimationPause {
-            get {
-                return ResourceManager.GetString("UVPathToolAnimationPause", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Play.
-        /// </summary>
-        internal static string UVPathToolAnimationPlay {
-            get {
-                return ResourceManager.GetString("UVPathToolAnimationPlay", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Step.
-        /// </summary>
-        internal static string UVPathToolAnimationStep {
-            get {
-                return ResourceManager.GetString("UVPathToolAnimationStep", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Create and edit UV tool paths..
-        /// </summary>
-        internal static string UVPathToolButtonHint {
-            get {
-                return ResourceManager.GetString("UVPathToolButtonHint", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to UV.
-        /// </summary>
-        internal static string UVPathToolButtonText {
-            get {
-                return ResourceManager.GetString("UVPathToolButtonText", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to &lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; ?&gt;
-        ///&lt;customUI xmlns=&quot;http://schemas.spaceclaim.com/customui&quot;&gt;
-        ///	&lt;panel&gt;
-        ///		&lt;group id=&quot;UVPathToolGroup&quot; label=&quot;Profile Options&quot;&gt;
-        ///			&lt;container id=&quot;UVPathToolContainer&quot; layoutOrientation=&quot;vertical&quot;&gt;
-        ///				&lt;container id=&quot;UVPathToolContainerColor&quot; layoutOrientation=&quot;horizontal&quot;&gt;
-        ///					&lt;label id=&quot;UVPathToolColorLabel&quot; text=&quot;Color:&quot; width=&quot;40&quot;/&gt;
-        ///
-        ///					&lt;!--
-        ///						Combo box items can either be specified in XML, or specified by setting the Command.ControlState to
-        ///						be a C [rest of string was truncated]&quot;;.
-        /// </summary>
-        internal static string UVPathToolOptions {
-            get {
-                return ResourceManager.GetString("UVPathToolOptions", resourceCulture);
             }
         }
         

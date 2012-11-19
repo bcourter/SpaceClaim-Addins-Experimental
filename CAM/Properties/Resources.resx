@@ -123,28 +123,25 @@
   <data name="TabText" xml:space="preserve">
     <value>CAM</value>
   </data>
-  <data name="UVPathToolAnimationPause" xml:space="preserve">
+  <data name="AnimationPause" xml:space="preserve">
     <value>Pause</value>
   </data>
-  <data name="UVPathToolAnimationPlay" xml:space="preserve">
+  <data name="AnimationPlay" xml:space="preserve">
     <value>Play</value>
   </data>
-  <data name="UVPathToolAnimationStep" xml:space="preserve">
+  <data name="AnimationStep" xml:space="preserve">
     <value>Step</value>
   </data>
-  <data name="UVPathToolButtonHint" xml:space="preserve">
+  <data name="FaceToolPathToolButtonHint" xml:space="preserve">
     <value>Create and edit UV tool paths.</value>
   </data>
-  <data name="UVPathToolButtonText" xml:space="preserve">
+  <data name="FaceToolPathToolButtonText" xml:space="preserve">
     <value>UV</value>
-  </data>
-  <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
-  <data name="UVPathToolOptions" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\resources\uvpathtooloptions.xml;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;Windows-1252</value>
   </data>
   <data name="UVPathName" xml:space="preserve">
     <value />
   </data>
+  <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
   <data name="ToolPath32" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\resources\toolpath32.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
@@ -153,5 +150,14 @@
   </data>
   <data name="UVToolPathDisabled" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\resources\uvtoolpathdisabled.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="StepOver" xml:space="preserve">
+    <value>Step Over</value>
+  </data>
+  <data name="FaceToolPathToolOptions" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\resources\facetoolpathtooloptions.xml;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;Windows-1252</value>
+  </data>
+  <data name="FaceToolPathToolStatusText" xml:space="preserve">
+    <value>Select a face to create a tool path, or select a tool path to edit it.</value>
   </data>
 </root>

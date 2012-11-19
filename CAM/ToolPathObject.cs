@@ -23,7 +23,6 @@ namespace SpaceClaim.AddIn.CAM {
     public class ToolPathObject : CustomWrapper<ToolPathObject> {
         readonly DesignFace desFace;
         Color color;
-        double strength;
         IList<IList<Point>> positions;
         ToolPath toolPath;
 

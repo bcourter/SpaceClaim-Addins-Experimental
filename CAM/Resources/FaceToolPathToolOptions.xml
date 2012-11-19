@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<customUI xmlns="http://schemas.spaceclaim.com/customui">
+  <panel>
+    <group id="FaceToolPathToolGroup" label="Profile Options">
+      <container id="FaceToolPathToolContainer" layoutOrientation="vertical">
+        <container id="FaceToolPathToolStrategyContainer" layoutOrientation="horizontal">
+          <label id="FaceToolPathToolStrategyLabel" text="Strategy:" width="40"/>
+          <comboBox id="FaceToolPathToolStrategyList" command="FaceToolPathToolStrategyList" textEditable="false" type="default" width="130"/>
+        </container>
+        <container id="FaceToolPathToolCutterContainer" layoutOrientation="horizontal">
+          <label id="FaceToolPathToolCutterLabel" text="Strategy:" width="40"/>
+          <comboBox id="FaceToolPathToolCutterList" command="FaceToolPathToolCutterList" textEditable="false" type="default" width="130"/>
+        </container>
+        <container id="FaceToolPathToolStepOverContainer" layoutOrientation="horizontal">
+          <label id="FaceToolPathToolStepOverLabel" text="Step:" width="40"/>
+          <textbox id="FaceToolPathToolStepOverTextBox" command="FaceToolPathToolStepOverTextBox" />
+        </container>
+        <container id="FaceToolPathToolContainerColor" layoutOrientation="horizontal">
+          <label id="FaceToolPathToolColorLabel" text="Color:" width="40"/>
+          <comboBox id="FaceToolPathToolColorList" command="FaceToolPathToolColorList" textEditable="false" type="default" width="130"/>
+        </container>
+      </container>
+    </group>
+  </panel>
+</customUI>

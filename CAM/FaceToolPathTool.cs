@@ -53,8 +53,71 @@ namespace SpaceClaim.AddIn.CAM {
             }
         }
     }
+
+    static class CuttingToolComboBox {
+        const string commandName = "FaceToolPathToolCutterList";
+
+        static readonly string[] items = BallMill.StandardSizes.Keys.ToArray();
+
+        public static void Initialize() {
+            Command command = Command.Create(commandName);
+            command.ControlState = ComboBoxState.CreateFixed(items, 2);
+        }
+
+        public static Command Command {
+            get { return Command.GetCommand(commandName); }
+        }
+
+        public static CuttingTool Value {
+            get {
+                var state = (ComboBoxState)Command.ControlState;
+                return BallMill.StandardSizes[items[state.SelectedIndex]];
+            }
+            set {
+                var state = (ComboBoxState)Command.ControlState;
+                for (int i = 0; i < state.Items.Count; i++) {
+                    if (BallMill.StandardSizes.Values.ToArray()[i] == value) {
+                        Command.ControlState = ComboBoxState.CreateFixed(state.Items, i);
+                        return;
+                    }
+                }
+
+                throw new KeyNotFoundException("Invalid tool size.");
+            }
+        }
+    }
+
+    static class StepOverTextBox {
+        const string commandName = "FaceToolPathToolStepOverTextBox";
+        const string labelCommandName = "FaceToolPathToolStepOverLabel";
+
+        public static void Initialize() {
+            Command command = Command.Create(commandName);
+            Value = CuttingToolComboBox.Value.Radius;
+            command = Command.Create(labelCommandName);
+            command.Text = Resources.StepOver + ":";
+        }
+
+        public static Command Command {
+            get { return Command.GetCommand(commandName); }
+        }
+
+        public static double Value {
+            get {
+                double value;
+                if (!Double.TryParse(Command.Text, out value))
+                    return CuttingToolComboBox.Value.Radius;
+
+                return value / Window.ActiveWindow.Units.Length.ConversionFactor;
+            }
+            set {
+                Command.Text = (value * Window.ActiveWindow.Units.Length.ConversionFactor).ToString();
+            }
+        }
+    }
+
     static class ColorComboBox {
-        const string commandName = "UVPathToolColorList";
+        const string commandName = "FaceToolPathToolColorList";
 
         static readonly Color[] colorList = {
 			Color.Gray,
@@ -94,116 +157,18 @@ namespace SpaceClaim.AddIn.CAM {
         }
     }
 
-    static class RadiusSlider {
-        const string commandName = "UVPathToolRadiusSlider";
-        const double sliderScale = 0.0254 / 32;
-        const int sliderTicks = 32;
-        const int startRadius = 4;
-
-        public static void Initialize() {
-            Command command = Command.Create(commandName);
-            command.ControlState = SliderState.Create(startRadius, 1, sliderTicks);
-        }
-
-        public static Command Command {
-            get { return Command.GetCommand(commandName); }
-        }
-
-        public static double Value {
-            get {
-                var state = (SliderState)Command.ControlState;
-                return (double)state.Value * sliderScale;
-            }
-            set {
-                var state = (SliderState)Command.ControlState;
-                Command.ControlState = SliderState.Create((int)(value / sliderScale), state.MinimumValue, state.MaximumValue);
-            }
-        }
-    }
-
-    static class StepSizeSlider {
-        const string commandName = "UVPathToolStepSizeSlider";
-        const double sliderScale = 0.0254 / 32;
-        const int sliderTicks = 32;
-        const int startValue = 4;
-
-        public static void Initialize() {
-            Command command = Command.Create(commandName);
-            command.ControlState = SliderState.Create(startValue, 1, sliderTicks);
-        }
-
-        public static Command Command {
-            get { return Command.GetCommand(commandName); }
-        }
-
-        public static double Value {
-            get {
-                var state = (SliderState)Command.ControlState;
-                return (double)state.Value * sliderScale;
-            }
-            set {
-                var state = (SliderState)Command.ControlState;
-                Command.ControlState = SliderState.Create((int)(value / sliderScale), state.MinimumValue, state.MaximumValue);
-            }
-        }
-    }
-
-    static class AnimateStepButton {
-        const string commandName = "UVPathToolAnimateStepButton";
-        const string commandText = "Step";
-
-        public static void Initialize() {
-            Command command = Command.Create(commandName);
-            command.Text = commandText;
-        }
-
-        public static Command Command {
-            get { return Command.GetCommand(commandName); }
-        }
-    }
-
-    static class AnimatePlayButton {
-        const string commandName = "UVPathToolAnimatePlayButton";
-        const string commandText = "Play";
-
-        public static void Initialize() {
-            Command command = Command.Create(commandName);
-            command.Text = commandText;
-        }
-
-        public static Command Command {
-            get { return Command.GetCommand(commandName); }
-        }
-    }
-
-    static class CreateSpheresButton {
-        const string commandName = "UVPathToolCreateSpheres";
-        const string commandText = "Create Spheres";
-
-        public static void Initialize() {
-            Command command = Command.Create(commandName);
-            command.Text = commandText;
-        }
-
-        public static Command Command {
-            get { return Command.GetCommand(commandName); }
-        }
-    }
 
     class FaceToolPathToolButtonCapsule : RibbonButtonCapsule {
 
         public FaceToolPathToolButtonCapsule(RibbonCollectionCapsule parent, ButtonSize buttonSize)
-            : base("UV", Resources.UVPathToolButtonText, Resources.ToolPath32, Resources.UVPathToolButtonHint, parent, buttonSize) {
+            : base("UV", Resources.FaceToolPathToolButtonText, Resources.ToolPath32, Resources.FaceToolPathToolButtonHint, parent, buttonSize) {
         }
 
         protected override void OnInitialize(Command command) {
             StrategyComboBox.Initialize();
+            CuttingToolComboBox.Initialize();
+            StepOverTextBox.Initialize();
             ColorComboBox.Initialize();
-            StepSizeSlider.Initialize();
-            AnimateStepButton.Initialize();
-            AnimatePlayButton.Initialize();
-            RadiusSlider.Initialize();
-            CreateSpheresButton.Initialize();
         }
 
         protected override void OnUpdate(Command command) {
@@ -219,34 +184,91 @@ namespace SpaceClaim.AddIn.CAM {
     }
 
     class FaceToolPathTool : Tool {
-        string strategy;
-        double stepSize;
-        double radius;
-        Color color;
-        ToolPathAnimator animator;
-        ToolPath toolPath = null;
-
-
         public FaceToolPathTool()
             : base(InteractionMode.Solid) {
         }
 
         public override string OptionsXml {
-            get { return Resources.UVPathToolOptions; }
+            get { return Resources.FaceToolPathToolOptions; }
         }
 
         protected override void OnInitialize() {
             Reset();
-            animator = new ToolPathAnimator();
         }
 
         void Reset() {
             Rendering = null;
             SelectionTypes = new[] { typeof(DesignFace), typeof(CustomObject) };
-            StatusText = "Click on a face to create a new sphere set.";
+            StatusText = Resources.FaceToolPathToolStatusText;
+        }
 
-            stepSize = StepSizeSlider.Value;
-            radius = RadiusSlider.Value;
+        #region Command notifications
+
+        protected override void OnEnable(bool enable) {
+            if (enable)
+                Window.PreselectionChanged += Window_PreselectionChanged;
+            else
+                Window.PreselectionChanged -= Window_PreselectionChanged;
+
+            if (enable) {
+                StrategyComboBox.Command.TextChanged += strategyCommand_TextChanged;
+            }
+            else
+                StrategyComboBox.Command.TextChanged -= strategyCommand_TextChanged;
+
+            if (enable) {
+                CuttingToolComboBox.Command.TextChanged += cuttingToolCommand_TextChanged;
+            }
+            else
+                CuttingToolComboBox.Command.TextChanged -= cuttingToolCommand_TextChanged;
+
+            if (enable) {
+                 StepOverTextBox.Command.TextChanged += stepOverCommand_TextChanged;
+            }
+            else
+                StepOverTextBox.Command.TextChanged -= stepOverCommand_TextChanged;
+
+            if (enable) {
+                ColorComboBox.Command.TextChanged += colorCommand_TextChanged;
+            }
+            else
+                ColorComboBox.Command.TextChanged -= colorCommand_TextChanged;
+
+        }
+
+        void strategyCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
+            string strategy = StrategyComboBox.Value;
+
+            ToolPathObject toolPathObj = SelectedToolPath;
+            if (toolPathObj == null)
+                return;
+
+            ToolPath toolPath = toolPathObj.ToolPath;
+            if (strategy == "UV Contour")
+                toolPath = new UVFacingToolPath(((FaceToolPath)toolPath).Face, toolPath.CuttingTool, toolPath.CuttingParameters);
+
+            if (strategy == "Spiral")
+                toolPath = new SpiralFacingToolPath(((FaceToolPath)toolPath).Face, toolPath.CuttingTool, toolPath.CuttingParameters);
+
+            WriteBlock.ExecuteTask("Change toolpath strategy to " + strategy, () => { toolPathObj.ToolPath = toolPath; toolPathObj.Regenerate(); });
+        }
+
+        void cuttingToolCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
+            ToolPathObject toolPathObj = SelectedToolPath;
+            if (toolPathObj != null)
+                WriteBlock.ExecuteTask("Change cutter", () => { toolPathObj.ToolPath.CuttingTool = CuttingToolComboBox.Value; toolPathObj.Regenerate(); });
+        }
+
+        void stepOverCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
+            ToolPathObject toolPathObj = SelectedToolPath;
+            if (toolPathObj != null) 
+                WriteBlock.ExecuteTask("Update step size", () => { toolPathObj.ToolPath.CuttingParameters.StepOver = StepOverTextBox.Value; toolPathObj.Regenerate(); });
+        }
+
+        void colorCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
+            ToolPathObject toolPath = SelectedToolPath;
+            if (toolPath != null)
+                WriteBlock.ExecuteTask("Adjust color", () => toolPath.Color = ColorComboBox.Value);
         }
 
         protected override IDocObject AdjustSelection(IDocObject docObject) {
@@ -262,154 +284,9 @@ namespace SpaceClaim.AddIn.CAM {
             return null;
         }
 
-        protected override void OnEnable(bool enable) {
-            if (enable)
-                Window.PreselectionChanged += Window_PreselectionChanged;
-            else
-                Window.PreselectionChanged -= Window_PreselectionChanged;
+        #endregion
 
-            if (enable) {
-                strategy = StrategyComboBox.Value;
-                StrategyComboBox.Command.TextChanged += strategyCommand_TextChanged;
-            }
-            else
-                StrategyComboBox.Command.TextChanged -= strategyCommand_TextChanged;
-
-            if (enable) {
-                stepSize = StepSizeSlider.Value;
-                StepSizeSlider.Command.TextChanged += stepSizeSliderCommand_TextChanged;
-            }
-            else
-                StepSizeSlider.Command.TextChanged -= stepSizeSliderCommand_TextChanged;
-
-            if (enable) {
-                AnimateStepButton.Command.Executing += animateStepCommand_Execute;
-            }
-            else
-                AnimateStepButton.Command.Executing -= animateStepCommand_Execute;
-
-            if (enable) {
-                AnimatePlayButton.Command.Executing += animatePlayCommand_Execute;
-            }
-            else
-                AnimatePlayButton.Command.Executing -= animatePlayCommand_Execute;
-
-
-            if (enable) {
-                color = ColorComboBox.Value;
-                ColorComboBox.Command.TextChanged += colorCommand_TextChanged;
-            }
-            else
-                ColorComboBox.Command.TextChanged -= colorCommand_TextChanged;
-
-            if (enable) {
-                radius = RadiusSlider.Value;
-                RadiusSlider.Command.TextChanged += radiusSliderCommand_TextChanged;
-            }
-            else
-                RadiusSlider.Command.TextChanged -= radiusSliderCommand_TextChanged;
-
-            if (enable) {
-                CreateSpheresButton.Command.Executing += createSphereCommand_Execute;
-            }
-            else
-                CreateSpheresButton.Command.Executing -= createSphereCommand_Execute;
-        }
-
-        void strategyCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
-            strategy = StrategyComboBox.Value;
-
-            ToolPathObject toolPathObj = SelectedToolPath;
-            if (toolPath == null)
-                return;
-
-            if (strategy == "UV Contour")
-                toolPath = new UVFacingToolPath(((FaceToolPath)toolPath).Face, toolPath.CuttingTool, toolPath.CuttingParameters);
-
-            if (strategy == "Spiral")
-                toolPath = new SpiralFacingToolPath(((FaceToolPath)toolPath).Face, toolPath.CuttingTool, toolPath.CuttingParameters);
-
-            WriteBlock.ExecuteTask("Change toolpath strategy to " + strategy + ".", () => { toolPathObj.ToolPath = toolPath; toolPathObj.Regenerate(); });
-        }
-
-        void radiusSliderCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
-            radius = RadiusSlider.Value;
-
-            ToolPathObject toolPathObj = SelectedToolPath;
-            if (toolPathObj != null)
-                WriteBlock.ExecuteTask("Adjust radius", () => { toolPathObj.ToolPath.CuttingTool.Radius = radius; toolPathObj.Regenerate(); });
-        }
-
-        void stepSizeSliderCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
-            stepSize = StepSizeSlider.Value;
-
-            ToolPathObject toolPathObj = SelectedToolPath;
-            if (toolPathObj != null) {
-                WriteBlock.ExecuteTask("Update toolpath", () => { toolPathObj.ToolPath.CuttingParameters.StepOver = stepSize; toolPathObj.Regenerate(); });
-
-            }
-        }
-
-        void colorCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
-            color = ColorComboBox.Value;
-
-            ToolPathObject toolPath = SelectedToolPath;
-            if (toolPath != null)
-                WriteBlock.ExecuteTask("Adjust color", () => toolPath.Color = color);
-        }
-
-        void animateStepCommand_Execute(object sender, CommandExecutingEventArgs e) {
-            animator.Advance(1);
-        }
-
-        void animatePlayCommand_Execute(object sender, CommandExecutingEventArgs e) {
-            Command command = (Command)sender;
-
-            //for (int i = 0; i < 33; i++)
-            //    animator.Advance(1);
-
-            if (Animation.IsAnimating)
-                Animation.IsPaused = !Animation.IsPaused; // toggle Play/Pause
-            else
-                Animation.Start(Resources.UVPathToolAnimationPlay, animator);
-
-            command.IsChecked = Animation.IsAnimating;
-            command.Text = Animation.IsAnimating ? Resources.UVPathToolAnimationPause : Resources.UVPathToolAnimationPlay;
-        }
-
-
-        void createSphereCommand_Execute(object sender, CommandExecutingEventArgs e) {
-#if false
-            UVToolPath sphereSet = SelectedSphereSet;
-            if (sphereSet == null)
-                return;
-
-            Part sphereRootPart = Part.Create(Window.Document, "Spheres");
-            Component.Create(Window.ActiveWindow.Scene as Part, sphereRootPart);
-            Part innerSpherePart = Part.Create(Window.Document, "Inner Spheres");
-            Part outerSpherePart = Part.Create(Window.Document, "Outer Spheres");
-            Component.Create(sphereRootPart, innerSpherePart);
-            Component.Create(sphereRootPart, outerSpherePart);
-
-            Part spherePart = Part.Create(Window.Document, "Sphere");
-            ShapeHelper.CreateSphere(Point.Origin, sphereSet.Radius * 2, spherePart);
-
-            Face face = sphereSet.DesFace.Shape;
-            foreach (PointUV pointUV in sphereSet.Positions) {
-                Point point = face.Geometry.Evaluate(pointUV).Point;
-                bool isEdge = false;
-                foreach (Edge edge in face.Edges) {
-                    if ((edge.ProjectPoint(point).Point - point).MagnitudeSquared() < (sphereSet.Radius * sphereSet.Radius)) {
-                        isEdge = true;
-                        break;
-                    }
-                }
-
-                Component component = Component.Create(isEdge ? outerSpherePart : innerSpherePart, spherePart);
-                component.Placement = Matrix.CreateTranslation(point.Vector);
-            }
-#endif
-        }
+        #region Mouse Notifications
 
         void Window_PreselectionChanged(object sender, EventArgs e) {
             if (IsDragging)
@@ -424,6 +301,7 @@ namespace SpaceClaim.AddIn.CAM {
                 OnMouseMove(context.Window.CursorPosition, cursorRay, Control.MouseButtons);
         }
 
+        ToolPath toolPath;
         protected override bool OnMouseMove(ScreenPoint cursorPos, Line cursorRay, MouseButtons button) {
             if (button != MouseButtons.None)
                 return false;
@@ -443,6 +321,7 @@ namespace SpaceClaim.AddIn.CAM {
                 return false;
 
             Face face = desFace.Shape;
+            Color color = ColorComboBox.Value;
             Color prehighlightColor = Color.FromArgb(33, 255 - (255 - color.R) / 2, 255 - (255 - color.G) / 2, 255 - (255 - color.B) / 2);
 
             GraphicStyle style = new GraphicStyle {
@@ -451,14 +330,18 @@ namespace SpaceClaim.AddIn.CAM {
                 LineColor = color
             };
 
-            var ballMill = new BallMill(radius, 4 * radius);
-            var parameters = new CuttingParameters(radius, 1, 0.5 * Const.inches);
+            BallMill tool = CuttingToolComboBox.Value as BallMill;
+            if (tool == null)
+                throw new NotImplementedException("Only ball mills supported.");
 
+            var parameters = new CuttingParameters(StepOverTextBox.Value, 1, 0.25 * Const.inches);
+
+            string strategy = StrategyComboBox.Value;
             if (strategy == "UV Contour")
-                toolPath = new UVFacingToolPath(face, ballMill, parameters);
+                toolPath = new UVFacingToolPath(face, tool, parameters);
 
             if (strategy == "Spiral")
-                toolPath = new SpiralFacingToolPath(face, ballMill, parameters);
+                toolPath = new SpiralFacingToolPath(face, tool, parameters);
 
             Debug.Assert(toolPath != null);
 
@@ -469,21 +352,25 @@ namespace SpaceClaim.AddIn.CAM {
             return false; // if we return true, the preselection won't update
         }
 
-        #region Click-Click Notifications
-
         protected override bool OnClickStart(ScreenPoint cursorPos, Line cursorRay) {
             IDocObject selection = null;
             IDocObject preselection = InteractionContext.Preselection;
             var desFace = preselection as DesignFace;
             if (desFace != null)
-                WriteBlock.ExecuteTask("Create Tool Path", () => selection = ToolPathObject.Create(desFace, toolPath, color).Subject);
+                WriteBlock.ExecuteTask("Create Tool Path", () => selection = ToolPathObject.Create(desFace, toolPath, ColorComboBox.Value).Subject);
             else {
                 ToolPathObject toolPathObj = ToolPathObject.GetWrapper(preselection as CustomObject);
                 if (toolPathObj != null) {
                     selection = toolPathObj.Subject;
 
-                    StepSizeSlider.Value = toolPathObj.ToolPath.CuttingParameters.StepOver;
-                    RadiusSlider.Value = toolPathObj.ToolPath.CuttingTool.Radius;
+
+                    if (toolPathObj.ToolPath is UVFacingToolPath)
+                        StrategyComboBox.Value = "UV Contour";
+                    if (toolPathObj.ToolPath is SpiralFacingToolPath)
+                        StrategyComboBox.Value = "Spiral";
+
+                    StepOverTextBox.Value = toolPathObj.ToolPath.CuttingParameters.StepOver;
+                    CuttingToolComboBox.Value = toolPathObj.ToolPath.CuttingTool;
                     ColorComboBox.Value = toolPathObj.Color;
                 }
             }
@@ -493,80 +380,6 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         #endregion
-
-#if false
-        #region Drag Notifications
-
-        protected override bool OnDragStart(ScreenPoint cursorPos, Line cursorRay) {
-            sphereSet = SphereSet.GetWrapper(InteractionContext.Preselection as CustomObject);
-            if (sphereSet == null)
-                return false;
-
-            Point? pointOnCustom = InteractionContext.PreselectionPoint;
-            if (pointOnCustom == null) {
-                sphereSet = null;
-                return false;
-            }
-
-            applyLoop = new ProfileApplyLoop(sphereSet);
-
-            Point pointInFacePlane = sphereSet.Placement.Inverse * pointOnCustom.Value;
-            Face profileFace = sphereSet.Face.Shape;
-
-            profilePlane = profileFace.GetGeometry<Plane>();
-            double offset = GetOffset(profileFace, profilePlane, pointInFacePlane, out profileFin);
-
-            SelectionTypes = new Type[0]; // disable preselection while dragging
-            StatusText = "Drag to modify the profile offset.";
-            return true;
-        }
-
-        protected override void OnDragMove(ScreenPoint cursorPos, Line cursorRay) {
-            Debug.Assert(sphereSet != null);
-
-            cursorRay = sphereSet.Placement.Inverse * cursorRay;
-
-            Point point;
-            if (!profilePlane.TryIntersectLine(cursorRay, out point))
-                return; // plane is side-on
-
-            double offset = GetOffset(profileFin, profilePlane.Frame.DirZ, point);
-            if (!Accuracy.EqualLengths(offset, sphereSet.Offset))
-                applyLoop.Apply(offset);
-        }
-
-        protected override void OnDragEnd(ScreenPoint cursorPos, Line cursorRay) {
-            applyLoop.Complete();
-            Reset();
-        }
-
-        protected override void OnDragCancel() {
-            applyLoop.Cancel();
-            Reset();
-        }
-        #endregion
-    }
-
-    class SphereApplyLoop : ApplyLoop {
-        readonly SphereSet sphereSet;
-        double radius;
-
-        public SphereApplyLoop(SphereSet sphereSet)
-            : base("Modify sphere set.") {
-            this.sphereSet = sphereSet;
-        }
-
-        public void Apply(double radius) {
-            this.radius = radius;
-            Apply();
-        }
-
-        protected override bool OnApply() {
-            sphereSet.Radius = radius;
-            return true;
-        }
-   
-#endif
 
         public static ToolPathObject SelectedToolPath {
             get {
@@ -578,34 +391,6 @@ namespace SpaceClaim.AddIn.CAM {
             }
         }
 
-    }
-
-    class ToolPathAnimator : Animator {
-        public ToolPathAnimator() {
-        }
-
-        public override int Advance(int frame) {
-            Debug.Assert(frame >= 1);
-
-            ToolPathObject sphereSet = FaceToolPathTool.SelectedToolPath;
-            if (sphereSet == null)
-                return frame;
-
-            //        WriteBlock.ExecuteTask("Animate Spheres", () => CalculateFrame(sphereSet));
-
-            return frame + 2;
-        }
-
-
-        protected override void OnCompleted(AnimationCompletedEventArgs args) {
-            if (args.Result == AnimationResult.Canceled) {
-                UndoStepAdded = false;
-            }
-
-            base.OnCompleted(args);
-        }
-
-        public bool UndoStepAdded { get; private set; }
     }
 
 }

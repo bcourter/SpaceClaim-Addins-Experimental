@@ -116,7 +116,7 @@ namespace SpaceClaim.AddIn.CAM {
         public override Vector CenterToTip { get { return -Radius * Direction.DirZ; } }
 
         // http://www.mcmaster.com/#end-mills/=k7nu4a
-        public static Dictionary<string, BallMill> StandardSizes = new Dictionary<string, BallMill>() {
+        public static readonly Dictionary<string, BallMill> StandardSizes = new Dictionary<string, BallMill>() {
             {"1/8\" x 3/8\" cut", new BallMill((double)1/8/2 * Const.inches, (double)3/ 8* Const.inches)},
             {"3/16\" x 1/2\" cut", new BallMill((double)3/16/2 * Const.inches, (double)1/2 * Const.inches)},
             {"1/4\" x 5/8\" cut", new BallMill((double)1/4/2 * Const.inches, (double)5/8 * Const.inches)},

@@ -183,18 +183,16 @@ namespace SpaceClaim.AddIn.AETools {
             const double focusMaterialThickness = (0.75 - .01) * inches; //  http://www.interstateplastics.com/Black-Hdpe-Sheet-HDPBE.php?sku=HDPBE&vid=201211120902-7p&dim2=48&dim3=48&thickness=0.750&qty=1&recalculate.x=123&recalculate.y=18
             //     const double focusMaterialThickness = (0.75 - .038) * inches; // McMaster 8619K487	
             const double focusHeight = focusMaterialThickness - circuitBoardBandThickness - circuitBoardLedHeight;
-            const double focusApexThickness = circuitBoardBandThickness;
-            const double focusApexWidth = 0.5 * inches;
-            const double focusRootThickness = 0.25 * inches;
 
             const double domeMaterialThickness = 0.75; //   http://www.interstateplastics.com/Clear-Acrylic-Cast-Paper-Sheet-ACRCLCP.php?sku=ACRCLCP&vid=201211180031-7p&dim2=48&dim3=48&thickness=0.750&qty=1
             //         const double domeMaterialThickness = (double)11 / 16 - 0.049; // McMaster 8560K367	
             const double domeHeight = (double)7 / 16 * inches;
             const double domeApexThickness = (double)3 / 16 * inches;
-            const double domeRootThickness = (double)4 / 16 * inches;
+            const double domeRootThickness = (double)4 / 16 * inches; 
 
             const double boxSize = 48 * inches;
             const double boxLimit = 46 * inches;
+
 
             int maxPrint = 3;
 
@@ -401,7 +399,7 @@ namespace SpaceClaim.AddIn.AETools {
                 desBody = DesignBody.Create(part, "Reflector", outside);
                 desBody.Layer = reflectorLayer;
 
-                var smallerBall = new BallMill((double)3 / 32 * inches, 2 * inches);
+                BallMill smallerBall = BallMill.StandardSizes.Values.Where(b => b.Radius * 2 == (double)3/16).First();
                 var contouringParams = new CuttingParameters(smallerBall.Radius, 1, 0.25 * inches);
                 var bottommingParams = new CuttingParameters(smallerBall.Radius / 2, 1, 0.25 * inches);
 

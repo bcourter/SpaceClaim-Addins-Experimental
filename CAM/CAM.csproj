@@ -79,15 +79,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AddIn.cs" />
-    <Compile Include="ToolPathObject.cs" />
-    <Compile Include="CuttingParameters.cs" />
-    <Compile Include="CuttingTool.cs" />
-    <Compile Include="Operation.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="ToolPathObject.cs" />
+    <Compile Include="CuttingParameters.cs" />
+    <Compile Include="CuttingTool.cs" />
+    <Compile Include="Operation.cs" />
     <Compile Include="ToolPath.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -104,7 +104,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Resources\UVPathToolOptions.xml" />
+    <Content Include="Resources\FaceToolPathToolOptions.xml" />
     <Content Include="Resources\UVToolPath.png" />
     <Content Include="Resources\UVToolPathDisabled.png" />
     <None Include="app.config" />
