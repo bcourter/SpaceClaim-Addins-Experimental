@@ -38,7 +38,7 @@ namespace SpaceClaim.AddIn.CAM {
         public abstract IList<CutterLocation> GetCutterLocations();
 
         public Point RestPoint(Point point) {
-            return Point.Create(point.X, point.Y, CuttingParameters.RestZ);
+            return Point.Create(point.X, point.Y, CuttingParameters.RestZ + CuttingTool.Radius);
         }
 
         public IList<CutterLocation> GetCurves(out IList<CurveSegment> cutterCurves, out IList<CurveSegment> rapidCurves, out IList<CurveSegment> arrowCurves) {
@@ -58,7 +58,7 @@ namespace SpaceClaim.AddIn.CAM {
                 else
                     cutterCurves.Add(curve);
 
-                if (cutterLocations[i].IsRapid ^ !cutterLocations[i + 1].IsRapid)
+                if (cutterLocations[i].IsRapid && !cutterLocations[i + 1].IsRapid)
                     arrowCurves.Add(curve);
             }
 
@@ -127,49 +127,21 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         public Point[] GetChainAtV(double v, Func<PointUV, bool> condition) {
-            int uCount = 33;
+            List<Point> points = new List<Point>();
 
-            List<Point> points = new List<Point>(uCount);
+            double u = startU;
+            while (u <= endU) {
+                PointUV pointUV;
+                if (!surface.TryOffsetParam(PointUV.Create(u, v), DirectionUV.DirU, CuttingParameters.Increment, out pointUV))
+                    break;
 
-            for (int i = 0; i < uCount; i++) {
-                double u = startU + (double)i / (uCount - 1) * (endU - startU);
-                PointUV pointUV = PointUV.Create(u, v);
+                u = pointUV.U;
+
                 if (!condition(pointUV))
                     continue;
 
                 ToolEvaluation eval = Evaluate(pointUV);
                 points.Add(eval.CenterPoint);
-            }
-
-            return points.ToArray();
-        }
-
-        public Point[] GetChainAtVPPP(double v, Func<PointUV, bool> condition) {
-            double increment = 0.0001;
-
-            List<Point> points = new List<Point>();
-
-            double u = startU;
-            PointUV result;
-            while (u < endU) {
-                PointUV pointUV = PointUV.Create(u, v);
-                if (!condition(pointUV)) {
-                    if (surface.TryOffsetParam(pointUV, DirectionUV.DirU, increment, out result))
-                        u = result.U;
-                    else {
-                        u += increment;
-                        //                       Debug.Fail("Stuck U parameter.");
-                    }
-                    continue;
-                }
-
-                ToolEvaluation eval = Evaluate(pointUV);
-                points.Add(eval.CenterPoint);
-
-                if (!surface.TryOffsetParam(pointUV, DirectionUV.DirU, increment, out result))
-                    break;
-
-                u = result.U;
             }
 
             return points.ToArray();
@@ -204,8 +176,6 @@ namespace SpaceClaim.AddIn.CAM {
             });
 #endif
         }
-
-
 
         public IList<IList<Point>> GetChains() {
             var positions = new List<IList<Point>>();
@@ -247,7 +217,6 @@ namespace SpaceClaim.AddIn.CAM {
     public class SpiralFacingToolPath : FaceToolPath {
         Plane plane;
         ITrimmedCurve[] curves;
-        double initialOffset;
 
         public SpiralFacingToolPath(Face face, CuttingTool tool, CuttingParameters parameters)
             : base(face, tool, parameters) {
@@ -257,9 +226,9 @@ namespace SpaceClaim.AddIn.CAM {
 
             Debug.Assert(face.Loops.Where(l => l.IsOuter).Count() == 1);
             curves = face.Loops.Where(l => l.IsOuter).First().Edges.ToArray();
-            initialOffset = tool.Radius;
         }
 
+#if false
         public SpiralFacingToolPath(Face face, ICollection<Face> sideFaces, CuttingTool tool, CuttingParameters parameters)
             : base(face, tool, parameters) {
             Debug.Assert(sideFaces.Where(f => f.Body == face.Body).Count() == sideFaces.Count, "All faces must belong to same body.");
@@ -279,10 +248,11 @@ namespace SpaceClaim.AddIn.CAM {
             curves = offsetFace.Loops.Where(l => l.IsOuter).First().Edges.Select(e => e.ProjectToPlane(plane)).ToArray();
             initialOffset = 0;
         }
+#endif
 
         public override IList<CutterLocation> GetCutterLocations() {
-            SpiralStrategy strategy = new SpiralStrategy(plane, curves, CuttingTool, CuttingParameters, initialOffset, Csys);
-            return strategy.GetSpiralCuttingLocations();
+            SpiralStrategy strategy = new SpiralStrategy(plane, curves, CuttingTool.Radius, this);
+            return strategy.GetSpiralCuttingLocations();    
         }
 
     }
@@ -290,6 +260,7 @@ namespace SpaceClaim.AddIn.CAM {
     public class SpiralStrategy {
         Plane plane;
         ICollection<ITrimmedCurve> curves;
+        ToolPath toolPath;
         CuttingTool tool;
         CuttingParameters parameters;
         double initialOffset;
@@ -298,17 +269,18 @@ namespace SpaceClaim.AddIn.CAM {
         Vector tip;
         Vector closeClearanceVector;
 
-        public SpiralStrategy(Plane plane, ICollection<ITrimmedCurve> curves, CuttingTool tool, CuttingParameters parameters, double initialOffset, Frame Csys) {
+        public SpiralStrategy(Plane plane, ICollection<ITrimmedCurve> curves, double initialOffset, ToolPath toolPath) {
             this.plane = plane;
             this.curves = curves;
-            this.tool = tool;
-            this.parameters = parameters;
+            this.toolPath = toolPath;
+            this.tool = toolPath.CuttingTool;
+            this.parameters = toolPath.CuttingParameters;
             this.initialOffset = initialOffset;
 
             SurfaceEvaluation eval = plane.Evaluate(PointUV.Origin);
             centerOffset = eval.Normal * tool.Radius;
-            tip = -Csys.DirZ * tool.Radius;
-            closeClearanceVector = Csys.DirZ * tool.Radius;
+            tip = -toolPath.Csys.DirZ * tool.Radius;
+            closeClearanceVector = toolPath.Csys.DirZ * tool.Radius;
         }
 
         public IList<CutterLocation> GetSpiralCuttingLocations() {
@@ -354,7 +326,7 @@ namespace SpaceClaim.AddIn.CAM {
                 Point endPoint = points[points.Count - 1];
 
                 if (!isOnSpiral)
-                    locations.Add(new CutterLocation(Point.Create(startPoint.X, startPoint.Y, parameters.RestZ), tip, true));
+                    locations.Add(new CutterLocation(toolPath.RestPoint(startPoint), tip, true));
 
                 isOnSpiral = true;
 
@@ -365,14 +337,14 @@ namespace SpaceClaim.AddIn.CAM {
                 RecurseDescendChainTreeNodes(locations, node);
                 isOnSpiral = false;
 
-                locations.Add(new CutterLocation(Point.Create(locations[locations.Count - 1].Center.X, locations[locations.Count - 1].Center.Y, parameters.RestZ), tip, true));
+                locations.Add(new CutterLocation(toolPath.RestPoint(locations[locations.Count - 1].Center), tip, true));
             }
         }
 
         public IList<Point> GetPoints(ICollection<ITrimmedCurve> curves) {
             var profile = new List<Point>();
             foreach (ITrimmedCurve curve in new TrimmedCurveChain(curves).SortedCurves)
-                profile.AddRange(curve.TessellateCurve(parameters.increment).Select(p => p + centerOffset));
+                profile.AddRange(curve.TessellateCurve(parameters.Increment).Select(p => p + centerOffset));
 
             return profile;
         }

@@ -186,9 +186,8 @@ namespace SpaceClaim.AddIn.AETools {
 
             const double domeMaterialThickness = 0.75; //   http://www.interstateplastics.com/Clear-Acrylic-Cast-Paper-Sheet-ACRCLCP.php?sku=ACRCLCP&vid=201211180031-7p&dim2=48&dim3=48&thickness=0.750&qty=1
             //         const double domeMaterialThickness = (double)11 / 16 - 0.049; // McMaster 8560K367	
-            const double domeHeight = (double)7 / 16 * inches;
-            const double domeApexThickness = (double)3 / 16 * inches;
-            const double domeRootThickness = (double)4 / 16 * inches; 
+            const double domeHeight = (double)23 / 32 * inches;
+            const double domeRootThickness = (double)3 / 16 * inches; 
 
             const double boxSize = 48 * inches;
             const double boxLimit = 46 * inches;
@@ -241,8 +240,8 @@ namespace SpaceClaim.AddIn.AETools {
             Point[] boxPolygon = new Point[] {
                 Point.Create(boxSize / 2, boxSize / 2, 0),
                 Point.Create(-boxSize / 2, boxSize / 2, 0),
-                Point.Create(boxSize / 2, -boxSize / 2, 0),
-                Point.Create(-boxSize / 2, -boxSize / 2, 0)
+                Point.Create(-boxSize / 2, -boxSize / 2, 0),
+                Point.Create(boxSize / 2, -boxSize / 2, 0)
             };
             boxPolygon.AsPolygon().Print();
 
@@ -399,7 +398,7 @@ namespace SpaceClaim.AddIn.AETools {
                 desBody = DesignBody.Create(part, "Reflector", outside);
                 desBody.Layer = reflectorLayer;
 
-                BallMill smallerBall = BallMill.StandardSizes.Values.Where(b => b.Radius * 2 == (double)3/16).First();
+                BallMill smallerBall = BallMill.StandardSizes.Values.Where(b => Accuracy.EqualLengths( b.Radius * 2 , (double)3/16*inches)).First();
                 var contouringParams = new CuttingParameters(smallerBall.Radius, 1, 0.25 * inches);
                 var bottommingParams = new CuttingParameters(smallerBall.Radius / 2, 1, 0.25 * inches);
 
@@ -414,14 +413,15 @@ namespace SpaceClaim.AddIn.AETools {
 
                 //   Body insideTop = ArcLoft(domeHeight, cell.Center, insetBody);
                 Matrix m = Matrix.CreateTranslation(Direction.DirZ * domeRootThickness);
-                Body outsideTop = ArcLoft(domeHeight + domeApexThickness - domeRootThickness, m * cell.Center, nominalBody.CreateTransformedCopy(m));
+                Body outsideTop = ArcLoft(domeHeight - domeRootThickness, m * cell.Center, nominalBody.CreateTransformedCopy(m));
 
                 Body blockTop = Body.ExtrudeProfile(Plane.PlaneXY, nominalPath, domeRootThickness);
                 //     var heights = outside.Faces.Select(f => f.Loops.SelectMany(l => l.Vertices).Select(v => v.Position.Z).Average()).ToArray();
                 blockTop.DeleteFaces(blockTop.Faces.Where(f => Accuracy.EqualLengths(f.Loops.SelectMany(l => l.Vertices).Select(v => v.Position.Z).Average(), domeRootThickness)).ToArray(), RepairAction.None);
                 // blockTop.DeleteFaces(blockTop.Faces.Where(f => Direction.Cross(Direction.DirZ, f.Geometry.Evaluate(PointUV.Origin).Normal).IsZero).ToArray(), RepairAction.None);
 
-                outsideTop.Fuse(new[] { blockTop }, true, null);
+              //  outsideTop.Fuse(new[] { blockTop }, true, null);
+                outsideTop.Stitch(new[] { blockTop }, Accuracy.LinearResolution * 10, null);
                 desBody = DesignBody.Create(part, "Lens", outsideTop);
                 desBody.Layer = lensLayer;
                 desBody.Style = BodyStyle.Transparent;

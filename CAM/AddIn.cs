@@ -47,7 +47,8 @@ namespace SpaceClaim.AddIn.CAM {
 			RibbonGroupCapsule group;
 
 			group = new RibbonGroupCapsule("ToolPath", Resources.ToolPathGroupText, tab, RibbonCollectionCapsule.LayoutOrientation.horizontal);
-			new FaceToolPathToolButtonCapsule(group, RibbonButtonCapsule.ButtonSize.large);
+            new FaceToolPathToolButtonCapsule(group, RibbonButtonCapsule.ButtonSize.large);
+            new AnimationToolButtonCapsule(group, RibbonButtonCapsule.ButtonSize.large);
 
 		}
 

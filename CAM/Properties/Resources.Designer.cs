@@ -60,30 +60,64 @@ namespace CAM.Properties {
             }
         }
         
+        internal static System.Drawing.Bitmap Animate32 {
+            get {
+                object obj = ResourceManager.GetObject("Animate32", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Animate the selected tool path..
+        /// </summary>
+        internal static string AnimationToolButtonHint {
+            get {
+                return ResourceManager.GetString("AnimationToolButtonHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Animate.
+        /// </summary>
+        internal static string AnimationToolButtonText {
+            get {
+                return ResourceManager.GetString("AnimationToolButtonText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to At position {0} of {1}..
+        /// </summary>
+        internal static string AnimationToolMesage {
+            get {
+                return ResourceManager.GetString("AnimationToolMesage", resourceCulture);
+            }
+        }
+        
         /// <summary>
         ///   Looks up a localized string similar to Pause.
         /// </summary>
-        internal static string AnimationPause {
+        internal static string AnimationToolPause {
             get {
-                return ResourceManager.GetString("AnimationPause", resourceCulture);
+                return ResourceManager.GetString("AnimationToolPause", resourceCulture);
             }
         }
         
         /// <summary>
         ///   Looks up a localized string similar to Play.
         /// </summary>
-        internal static string AnimationPlay {
+        internal static string AnimationToolPlay {
             get {
-                return ResourceManager.GetString("AnimationPlay", resourceCulture);
+                return ResourceManager.GetString("AnimationToolPlay", resourceCulture);
             }
         }
         
         /// <summary>
         ///   Looks up a localized string similar to Step.
         /// </summary>
-        internal static string AnimationStep {
+        internal static string AnimationToolStep {
             get {
-                return ResourceManager.GetString("AnimationStep", resourceCulture);
+                return ResourceManager.GetString("AnimationToolStep", resourceCulture);
             }
         }
         
@@ -164,8 +198,71 @@ namespace CAM.Properties {
             }
         }
         
+        internal static System.Drawing.Bitmap TransportBackToBeginning {
+            get {
+                object obj = ResourceManager.GetObject("TransportBackToBeginning", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap TransportFastForward {
+            get {
+                object obj = ResourceManager.GetObject("TransportFastForward", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap TransportForwardToEnd {
+            get {
+                object obj = ResourceManager.GetObject("TransportForwardToEnd", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap TransportLoop {
+            get {
+                object obj = ResourceManager.GetObject("TransportLoop", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap TransportPause {
+            get {
+                object obj = ResourceManager.GetObject("TransportPause", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap TransportPlay {
+            get {
+                object obj = ResourceManager.GetObject("TransportPlay", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap TransportReverse {
+            get {
+                object obj = ResourceManager.GetObject("TransportReverse", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap TransportRewind {
+            get {
+                object obj = ResourceManager.GetObject("TransportRewind", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap TransportStop {
+            get {
+                object obj = ResourceManager.GetObject("TransportStop", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to UV Tool Path.
         /// </summary>
         internal static string UVPathName {
             get {

@@ -20,6 +20,30 @@ using ScreenPoint = System.Drawing.Point;
 using SpaceClaim.AddInLibrary;
 
 namespace SpaceClaim.AddIn.CAM {
+    class FaceToolPathToolButtonCapsule : RibbonButtonCapsule {
+        public FaceToolPathToolButtonCapsule(RibbonCollectionCapsule parent, ButtonSize buttonSize)
+            : base("UV", Resources.FaceToolPathToolButtonText, Resources.ToolPath32, Resources.FaceToolPathToolButtonHint, parent, buttonSize) {
+        }
+
+        protected override void OnInitialize(Command command) {
+            StrategyComboBox.Initialize();
+            CuttingToolComboBox.Initialize();
+            StepOverTextBox.Initialize();
+            ColorComboBox.Initialize();
+        }
+
+        protected override void OnUpdate(Command command) {
+            Window window = Window.ActiveWindow;
+            command.IsEnabled = window != null;
+            command.IsChecked = window != null && window.ActiveTool is FaceToolPathTool;
+        }
+
+        protected override void OnExecute(Command command, SpaceClaim.Api.V10.ExecutionContext context, Rectangle buttonRect) {
+            Window window = Window.ActiveWindow;
+            window.SetTool(new FaceToolPathTool());
+        }
+    }
+    
     static class StrategyComboBox {
         const string commandName = "FaceToolPathToolStrategyList";
 
@@ -157,32 +181,6 @@ namespace SpaceClaim.AddIn.CAM {
         }
     }
 
-
-    class FaceToolPathToolButtonCapsule : RibbonButtonCapsule {
-
-        public FaceToolPathToolButtonCapsule(RibbonCollectionCapsule parent, ButtonSize buttonSize)
-            : base("UV", Resources.FaceToolPathToolButtonText, Resources.ToolPath32, Resources.FaceToolPathToolButtonHint, parent, buttonSize) {
-        }
-
-        protected override void OnInitialize(Command command) {
-            StrategyComboBox.Initialize();
-            CuttingToolComboBox.Initialize();
-            StepOverTextBox.Initialize();
-            ColorComboBox.Initialize();
-        }
-
-        protected override void OnUpdate(Command command) {
-            Window window = Window.ActiveWindow;
-            command.IsEnabled = window != null;
-            command.IsChecked = window != null && window.ActiveTool is FaceToolPathTool;
-        }
-
-        protected override void OnExecute(Command command, SpaceClaim.Api.V10.ExecutionContext context, Rectangle buttonRect) {
-            Window window = Window.ActiveWindow;
-            window.SetTool(new FaceToolPathTool());
-        }
-    }
-
     class FaceToolPathTool : Tool {
         public FaceToolPathTool()
             : base(InteractionMode.Solid) {
@@ -210,6 +208,11 @@ namespace SpaceClaim.AddIn.CAM {
             else
                 Window.PreselectionChanged -= Window_PreselectionChanged;
 
+            if (enable)
+                Window.ActiveWindowChanged += Window_ActiveWindowChanged;
+            else
+                Window.ActiveWindowChanged -= Window_ActiveWindowChanged;
+
             if (enable) {
                 StrategyComboBox.Command.TextChanged += strategyCommand_TextChanged;
             }
@@ -236,10 +239,27 @@ namespace SpaceClaim.AddIn.CAM {
 
         }
 
+        void Window_PreselectionChanged(object sender, EventArgs e) {
+            if (IsDragging)
+                return;
+
+            // preselection can change without the mouse moving (e.g. just created a profile)
+            Rendering = null;
+
+            InteractionContext context = InteractionContext;
+            Line cursorRay = context.CursorRay;
+            if (cursorRay != null)
+                OnMouseMove(context.Window.CursorPosition, cursorRay, Control.MouseButtons);
+        }
+
+        void Window_ActiveWindowChanged(object sender, EventArgs e) {
+       ;
+        }
+
         void strategyCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
             string strategy = StrategyComboBox.Value;
 
-            ToolPathObject toolPathObj = SelectedToolPath;
+            ToolPathObject toolPathObj = ToolPathObject.SelectedToolPath;
             if (toolPathObj == null)
                 return;
 
@@ -254,19 +274,19 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         void cuttingToolCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
-            ToolPathObject toolPathObj = SelectedToolPath;
+            ToolPathObject toolPathObj = ToolPathObject.SelectedToolPath;
             if (toolPathObj != null)
                 WriteBlock.ExecuteTask("Change cutter", () => { toolPathObj.ToolPath.CuttingTool = CuttingToolComboBox.Value; toolPathObj.Regenerate(); });
         }
 
         void stepOverCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
-            ToolPathObject toolPathObj = SelectedToolPath;
+            ToolPathObject toolPathObj = ToolPathObject.SelectedToolPath;
             if (toolPathObj != null) 
                 WriteBlock.ExecuteTask("Update step size", () => { toolPathObj.ToolPath.CuttingParameters.StepOver = StepOverTextBox.Value; toolPathObj.Regenerate(); });
         }
 
         void colorCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {
-            ToolPathObject toolPath = SelectedToolPath;
+            ToolPathObject toolPath = ToolPathObject.SelectedToolPath;
             if (toolPath != null)
                 WriteBlock.ExecuteTask("Adjust color", () => toolPath.Color = ColorComboBox.Value);
         }
@@ -287,19 +307,6 @@ namespace SpaceClaim.AddIn.CAM {
         #endregion
 
         #region Mouse Notifications
-
-        void Window_PreselectionChanged(object sender, EventArgs e) {
-            if (IsDragging)
-                return;
-
-            // preselection can change without the mouse moving (e.g. just created a profile)
-            Rendering = null;
-
-            InteractionContext context = InteractionContext;
-            Line cursorRay = context.CursorRay;
-            if (cursorRay != null)
-                OnMouseMove(context.Window.CursorPosition, cursorRay, Control.MouseButtons);
-        }
 
         ToolPath toolPath;
         protected override bool OnMouseMove(ScreenPoint cursorPos, Line cursorRay, MouseButtons button) {
@@ -334,7 +341,7 @@ namespace SpaceClaim.AddIn.CAM {
             if (tool == null)
                 throw new NotImplementedException("Only ball mills supported.");
 
-            var parameters = new CuttingParameters(StepOverTextBox.Value, 1, 0.25 * Const.inches);
+            var parameters = new CuttingParameters(StepOverTextBox.Value, 15 * Const.inches, 0.25 * Const.inches);
 
             string strategy = StrategyComboBox.Value;
             if (strategy == "UV Contour")
@@ -380,17 +387,6 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         #endregion
-
-        public static ToolPathObject SelectedToolPath {
-            get {
-                IDocObject docObject = Window.ActiveWindow.ActiveContext.SingleSelection;
-                if (docObject == null)
-                    return null;
-
-                return ToolPathObject.GetWrapper(docObject as CustomObject);
-            }
-        }
-
     }
 
 }

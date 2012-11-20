@@ -23,8 +23,8 @@ namespace SpaceClaim.AddIn.CAM {
     public class ToolPathObject : CustomWrapper<ToolPathObject> {
         readonly DesignFace desFace;
         Color color;
-        IList<IList<Point>> positions;
         ToolPath toolPath;
+        IList<CutterLocation> cutterLocations;
 
         const double tau = Math.PI * 2;
         static List<ToolPathObject> allUVPaths = new List<ToolPathObject>();
@@ -56,13 +56,14 @@ namespace SpaceClaim.AddIn.CAM {
 
             var toolPathObj = new ToolPathObject(desFace, toolPath, color);
             toolPathObj.Initialize();
+            toolPathObj.cutterLocations = toolPath.GetCutterLocations().ToArray();
             return toolPathObj;
         }
 
         public void Regenerate() {
             this.Initialize();
+            cutterLocations = toolPath.GetCutterLocations().ToArray();
         }
-
 
 #if false
         // if this returns true, the custom object can be used with the Move tool
@@ -139,7 +140,7 @@ namespace SpaceClaim.AddIn.CAM {
         void UpdateRendering(CancellationToken token) {
             Face face = desFace.Shape;
             Graphic curveGraphic, arrowGraphic;
-            GetGraphics(toolPath, out curveGraphic, out arrowGraphic);
+            cutterLocations = GetGraphics(toolPath, out curveGraphic, out arrowGraphic);
             GraphicStyle style;
 
             Color transparentColor = Color.FromArgb(44, color);
@@ -172,26 +173,30 @@ namespace SpaceClaim.AddIn.CAM {
 
             // curves
             style = new GraphicStyle {
-                LineColor = curveColor
+                LineColor = curveColor,
+                FillColor = curveColor
             };
-            Graphic selectedShell = Graphic.Create(style, null, curveGraphic);
+            Graphic selectedCurves = Graphic.Create(style, null, curveGraphic);
+            Graphic selectedArrows = Graphic.Create(style, null, arrowGraphic);
 
             style = new GraphicStyle {
                 IsPreselection = true,
                 LineColor = curvePrehighlightColor,
+                FillColor = curvePrehighlightColor,
                 LineWidth = 3
             };
-            Graphic prehighlightedShell = Graphic.Create(style, null, curveGraphic);
+            Graphic prehighlightedCurves = Graphic.Create(style, null, curveGraphic);
+            Graphic prehighlightedArrows = Graphic.Create(style, null, arrowGraphic);
 
             style = new GraphicStyle {
                 EnableDepthBuffer = true,
             };
 
-        //    Rendering = Graphic.Create(style, null, new[] { prehighlighted, prehighlightedShell, selectedShell });
-            Rendering = Graphic.Create(style, null, new[] { prehighlightedShell, selectedShell });
+            //    Rendering = Graphic.Create(style, null, new[] { prehighlighted, prehighlightedShell, selectedShell });
+            Rendering = Graphic.Create(style, null, new[] { prehighlightedCurves, selectedCurves });
         }
 
-        public static void GetGraphics(ToolPath toolPath, out Graphic curveGraphic, out Graphic arrowGraphic) {
+        public static IList<CutterLocation> GetGraphics(ToolPath toolPath, out Graphic curveGraphic, out Graphic arrowGraphic) {
             IList<CurveSegment> cutterCurves;
             IList<CurveSegment> rapidCurves;
             IList<CurveSegment> arrowCurves;
@@ -209,13 +214,31 @@ namespace SpaceClaim.AddIn.CAM {
 
             curveGraphic = Graphic.Create(null, null, new[] { cutterGraphic, rapidGraphic });
 
-            //style = new GraphicStyle {
-            //    IsFlatOn = true,
-            //    IsPixelSpace = true,
-            //    LineWidth = 1
-            //};
-            //arrowGraphic = Graphic.Create(style, arrowCurves.Select(c => ArrowPrimitive.Create(Frame.Create(c.StartPoint, (c.EndPoint - c.StartPoint).Direction), 15, 3)).ToArray());
+            style = new GraphicStyle {
+                LineColor = Color.Black,
+                FillColor = Color.Gray,
+                //  IsFlatOn = true,
+                LineWidth = 1
+            };
+            //arrowGraphic = Graphic.Create(style, arrowCurves.Select(c => {
+            //    var point = c.StartPoint;
+            //    var tangent = (c.EndPoint - c.StartPoint).Direction;
+            //    var frame = Frame.Create(point, tangent);
+            //    return ArrowPrimitive.Create(frame, 20, 10);
+            //}).ToArray());
             arrowGraphic = null;
+
+            return cutterLocations;
+        }
+
+        public static ToolPathObject SelectedToolPath {
+            get {
+                IDocObject docObject = Window.ActiveWindow.ActiveContext.SingleSelection;
+                if (docObject == null)
+                    return null;
+
+                return GetWrapper(docObject as CustomObject);
+            }
         }
 
         public static IList<ToolPathObject> AllUVPaths {
@@ -248,12 +271,8 @@ namespace SpaceClaim.AddIn.CAM {
             }
         }
 
-        public IList<IList<Point>> Positions {
-            get { return positions; }
-            set {
-                positions = value;
-                Commit();
-            }
+        public IList<CutterLocation> CutterLocations {
+            get { return cutterLocations; }
         }
 
     }

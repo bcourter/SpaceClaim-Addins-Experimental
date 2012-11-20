@@ -1,8 +1,4 @@
-﻿/*
- * Sample add-in for the SpaceClaim API
- */
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -20,20 +16,19 @@ using ScreenPoint = System.Drawing.Point;
 using SpaceClaim.AddInLibrary;
 
 namespace SpaceClaim.AddIn.CAM {
-
     public class CuttingParameters {
         public double StepOver { get; set; }
         public double FeedRate { get; set; }
+        public double FeedRateRapid { get; set; }
         public double RestZ { get; set; }
-        public double increment { get; set; }
+        public double Increment { get; set; }
 
         public CuttingParameters(double stepOver, double feedRate, double restZ) {
             StepOver = stepOver;
             FeedRate = feedRate;
+            FeedRateRapid = feedRate * 4;
             RestZ = restZ;
-            increment = 0.001;
+            Increment = 0.002;
         }
-
-
     }
 }
