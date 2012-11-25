@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<customUI xmlns="http://schemas.spaceclaim.com/customui">
+  <panel>
+    <group id="AnimationToolGroup" label="Profile Options">
+      <container id="AnimationToolContainer" layoutOrientation="vertical">
+        <container id="AnimationToolStrategyContainer" layoutOrientation="horizontal">
+          <label id="AnimationToolSpeedLabel" command="AnimationToolSpeedLabel" width="40"/>
+          <slider id="AnimationToolSpeedSlider" command="AnimationToolSpeedSlider" width="90" labelVisible="false" />
+        </container>
+      </container>
+    </group>
+  </panel>
+</customUI>

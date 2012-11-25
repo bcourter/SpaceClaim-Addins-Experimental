@@ -106,6 +106,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Resources\Animate32.png" />
+    <Content Include="Resources\AnimationToolOptions.xml" />
     <Content Include="Resources\FaceToolPathToolOptions.xml" />
     <Content Include="Resources\TransportBackToBeginning.png" />
     <Content Include="Resources\TransportFastForward.png" />

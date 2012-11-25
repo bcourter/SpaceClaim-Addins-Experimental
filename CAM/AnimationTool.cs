@@ -20,7 +20,6 @@ using ScreenPoint = System.Drawing.Point;
 using SpaceClaim.AddInLibrary;
 
 namespace SpaceClaim.AddIn.CAM {
-
     class AnimationToolButtonCapsule : RibbonButtonCapsule {
         public AnimationToolButtonCapsule(RibbonCollectionCapsule parent, ButtonSize buttonSize)
             : base("Animate", Resources.AnimationToolButtonText, Resources.Animate32, Resources.AnimationToolButtonHint, parent, buttonSize) {
@@ -28,8 +27,8 @@ namespace SpaceClaim.AddIn.CAM {
 
         protected override void OnInitialize(Command command) {
             new AnimateCapsule().Initialize();
-            //       StrategyComboBox.Initialize();
 
+            SpeedSlider.Initialize();
         }
 
         protected override void OnUpdate(Command command) {
@@ -44,9 +43,62 @@ namespace SpaceClaim.AddIn.CAM {
         }
     }
 
+    static class SpeedSlider {
+        const string commandName = "AnimationToolSpeedSlider";
+        const string labelCommandName = "AnimationToolSpeedLabel";
+        const int minValue = 0;
+        const int maxValue = 40;
+
+        public static void Initialize() {
+            Command command = Command.Create(commandName);
+            command.IsWriteBlock = false;
+            Command.Create(labelCommandName);
+            Value = 1;
+        }
+
+#if false  // for abstract
+        public static void SetEnable(bool enable) {
+            if (enable)
+                Command.TextChanged += TextChanged;
+            else
+                Command.TextChanged -= TextChanged;
+        }
+
+        static void TextChanged(object sender, CommandTextChangedEventArgs e) {
+            color = ColorComboBox.SelectedColor;
+        }
+#endif
+
+        public static Command Command {
+            get { return Command.GetCommand(commandName); }
+        }
+
+        public static Command LabelCommand {
+            get { return Command.GetCommand(labelCommandName); }
+        }
+
+        public static double Value {
+            get {
+                var state = (SliderState)Command.ControlState;
+                return Math.Pow(2, (double)state.Value / 10 - 1);
+            }
+            set {
+                var state = (SliderState)Command.ControlState;
+                int v = (int)Math.Round((Math.Log(value) / Math.Log(2) + 1) * 10);
+                Command.ControlState = SliderState.Create(v, minValue, maxValue);
+                LabelCommand.Text = string.Format(Resources.AnimationToolSpeedLabel, value);
+            }
+        }
+    }
+
+
     class AnimationTool : Tool {
         public AnimationTool()
             : base(InteractionMode.Solid) {
+        }
+
+        public override string OptionsXml {
+            get { return Resources.AnimationToolOptions; }
         }
 
         protected override void OnInitialize() {
@@ -56,7 +108,12 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         protected override IDocObject AdjustSelection(IDocObject docObject) {
-            return docObject as IComponent ?? docObject.GetAncestor<IComponent>();
+            return docObject as CustomObject;
+        }
+
+        protected override void OnEnable(bool enable) {
+
+
         }
 
         protected override bool OnClickStart(ScreenPoint cursorPos, Line cursorRay) {
@@ -92,18 +149,21 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         protected override void OnExecute(Command command, ExecutionContext context, Rectangle buttonRect) {
-            if (Animation.IsAnimating)
+            if (Animation.IsAnimating) {
                 Animation.IsPaused = !Animation.IsPaused;
+                animator.WasJustPaused = true;
+            }
             else
                 Animate(command, ToolPathObject.SelectedToolPath);
         }
 
+        static ToolPathAnimator animator = null;
         static void Animate(Command command, ToolPathObject toolPathObj) {
 
-            Window window = Window.ActiveWindow;
-            window.ActiveContext.SingleSelection = null; // clear selection
+            //     Window window = Window.ActiveWindow;
+            //      window.ActiveContext.SingleSelection = null; // clear selection
 
-            var animator = new ToolPathAnimator(toolPathObj, AnimationTool);
+            animator = new ToolPathAnimator(toolPathObj, AnimationTool);
 
             animator.Completed += (sender, e) => {
                 if (e.Result == AnimationResult.Exhausted) {
@@ -111,15 +171,14 @@ namespace SpaceClaim.AddIn.CAM {
                     //    Application.Undo(1); // rewind to start
                     //Animation.Start(message, animator, command); // restart
                 }
-                else // animation was canceled or stopped
-                    window.ActiveContext.SingleSelection = toolPathObj.Subject;
+                //else // animation was canceled or stopped
+                //  window.ActiveContext.SingleSelection = toolPathObj.Subject;
             };
 
-            string message = string.Format(Resources.AnimationToolMesage, 0, toolPathObj.CutterLocations.Count);
-            Animation.Start(message, animator, command);
+            Animation.Start(Resources.AnimatingMessage, animator, command);
         }
 
-        static AnimationTool AnimationTool {
+        public static AnimationTool AnimationTool {
             get {
                 Window window = Window.ActiveWindow;
                 return window == null ? null : window.ActiveTool as AnimationTool;
@@ -132,11 +191,13 @@ namespace SpaceClaim.AddIn.CAM {
         ToolPath toolPath;
         AnimationTool animationTool;
 
-        double position = 0;
         IList<CutterLocation> locations;
         double totalLength = 0;
         double totalTime = 0;
         double[] timeToLocation;
+
+        public bool WasJustPaused { get; set; }
+        DateTime lastTime;
 
         public ToolPathAnimator(ToolPathObject toolPathObj, AnimationTool animationTool) {
             this.toolPathObj = toolPathObj;
@@ -155,10 +216,29 @@ namespace SpaceClaim.AddIn.CAM {
                 totalTime += time;
                 timeToLocation[i + 1] = totalTime;
             }
+
+            lastTime = DateTime.Now;
+            WasJustPaused = false;
         }
 
+        int index;
+        double ratio;
+        double time = 0;
         public override int Advance(int frame) {
-            position += 1;
+            double deltaTime = (double)(DateTime.Now - lastTime).Ticks / TimeSpan.TicksPerMinute;
+            if (WasJustPaused) {
+                deltaTime = 0;
+                WasJustPaused = false;
+            }
+
+            time += deltaTime * SpeedSlider.Value;
+            if (time > totalTime)
+                return 0;
+
+            if (!TryGetLocationFromTime(time, out  index, out  ratio))
+                throw new IndexOutOfRangeException();
+
+            Point location = Interpolation.Interpolate(locations[index].Point, locations[index + 1].Point, ratio);
 
             Primitive toolPrimitive = toolPath.CuttingTool.GetPrimitive();
             Color color = toolPathObj.Color;
@@ -170,11 +250,12 @@ namespace SpaceClaim.AddIn.CAM {
                 LineColor = color
             };
 
-            Point location = toolPathObj.CutterLocations[(int)position].Point;
-
             animationTool.Rendering = Graphic.Create(style, new[] { toolPrimitive }, null, Matrix.CreateMapping(toolPath.Csys) * Matrix.CreateTranslation(location.Vector));
 
-            return (int)(toolPathObj.CutterLocations.Count - position);
+            AnimateCapsule.AnimationTool.StatusText = string.Format(Resources.AnimationToolMesage, time, totalTime, time / totalTime * 100);
+
+            lastTime = DateTime.Now;
+            return frame + 1;
         }
 
         protected override void OnCompleted(AnimationCompletedEventArgs args) {

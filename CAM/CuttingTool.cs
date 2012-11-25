@@ -100,11 +100,14 @@ namespace SpaceClaim.AddIn.CAM {
     public class BallMill : CuttingTool {
         public BallMill(double radius, double height)
             : base(radius, height) {
+
+            if (height < radius)
+                throw new ArgumentException("Height must be larger than radius.");
         }
 
         public override IEnumerable<CurveSegment> GetProfile() {
             Point center = Point.Origin + Direction.DirZ * Radius;
-            Point top = center + Direction.DirZ * CutingHeight;
+            Point top = Point.Origin + Direction.DirZ * CutingHeight;
 
             var ballArc = CurveSegment.Create(Circle.Create(Frame.Create(center, Direction.DirX, Direction.DirZ), Radius), Interval.Create((double)3 / 4 * Const.Tau, Const.Tau));
             var sideLine = CurveSegment.Create(center + Direction.DirX * Radius, top + Direction.DirX * Radius);

@@ -68,6 +68,15 @@ namespace CAM.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Animating. Press Space to pause or Esc or Enter to exit..
+        /// </summary>
+        internal static string AnimatingMessage {
+            get {
+                return ResourceManager.GetString("AnimatingMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Animate the selected tool path..
         /// </summary>
         internal static string AnimationToolButtonHint {
@@ -86,11 +95,27 @@ namespace CAM.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to At position {0} of {1}..
+        ///   Looks up a localized string similar to At time {0:F2}/{1:F2} ({2:F2}%)..
         /// </summary>
         internal static string AnimationToolMesage {
             get {
                 return ResourceManager.GetString("AnimationToolMesage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to &lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; ?&gt;
+        ///&lt;customUI xmlns=&quot;http://schemas.spaceclaim.com/customui&quot;&gt;
+        ///  &lt;panel&gt;
+        ///    &lt;group id=&quot;AnimationToolGroup&quot; label=&quot;Profile Options&quot;&gt;
+        ///      &lt;container id=&quot;AnimationToolContainer&quot; layoutOrientation=&quot;vertical&quot;&gt;
+        ///        &lt;container id=&quot;AnimationToolStrategyContainer&quot; layoutOrientation=&quot;horizontal&quot;&gt;
+        ///          &lt;label id=&quot;AnimationToolSpeedLabel&quot; width=&quot;40&quot;/&gt;
+        ///          &lt;slider id=&quot;AnimationToolSpeedSlider&quot; width=&quot;90&quot; command=&quot;AnimationToolSpeedSlider&quot; labelVisible=&quot;true&quot; /&gt; [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string AnimationToolOptions {
+            get {
+                return ResourceManager.GetString("AnimationToolOptions", resourceCulture);
             }
         }
         
@@ -109,6 +134,15 @@ namespace CAM.Properties {
         internal static string AnimationToolPlay {
             get {
                 return ResourceManager.GetString("AnimationToolPlay", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Speed: {0:F2}x.
+        /// </summary>
+        internal static string AnimationToolSpeedLabel {
+            get {
+                return ResourceManager.GetString("AnimationToolSpeedLabel", resourceCulture);
             }
         }
         

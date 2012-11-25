@@ -164,7 +164,7 @@
     <value>Animate</value>
   </data>
   <data name="AnimationToolMesage" xml:space="preserve">
-    <value>At position {0} of {1}.</value>
+    <value>At time {0:F2}/{1:F2} ({2:F2}%).</value>
   </data>
   <data name="FaceToolPathToolOptions" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\resources\facetoolpathtooloptions.xml;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;Windows-1252</value>
@@ -198,5 +198,14 @@
   </data>
   <data name="TransportStop" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\resources\transportstop.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="AnimatingMessage" xml:space="preserve">
+    <value>Animating. Press Space to pause or Esc or Enter to exit.</value>
+  </data>
+  <data name="AnimationToolOptions" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\resources\animationtooloptions.xml;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;Windows-1252</value>
+  </data>
+  <data name="AnimationToolSpeedLabel" xml:space="preserve">
+    <value>Speed: {0:F2}x</value>
   </data>
 </root>

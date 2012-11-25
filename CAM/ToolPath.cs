@@ -53,7 +53,7 @@ namespace SpaceClaim.AddIn.CAM {
                 if (curve == null)
                     continue;
 
-                if (cutterLocations[i].IsRapid)
+                if (cutterLocations[i + 1].IsRapid)
                     rapidCurves.Add(curve);
                 else
                     cutterCurves.Add(curve);
