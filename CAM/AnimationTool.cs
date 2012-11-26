@@ -26,7 +26,7 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         protected override void OnInitialize(Command command) {
-            new AnimateCapsule().Initialize();
+            TransportControls.Initialize();
 
             SpeedSlider.Initialize();
         }
@@ -43,6 +43,214 @@ namespace SpaceClaim.AddIn.CAM {
         }
     }
 
+    static class TransportControls {
+        const string jumpToStartCommandName = "AnimationToolJumpToStartButton";
+        const string reverseCommandName = "AnimationToolReverseButton";
+        const string playCommandName = "AnimationToolPlayButton";
+        const string jumpToEndCommandName = "AnimationToolJumpToEndButton";
+        const string positionSliderCommandName = "AnimationToolPositionSlider";
+        const string positionLabelCommandName = "AnimationToolPositionLabel";
+        const string positionStartLabelCommandName = "AnimationToolPositionStartLabel";
+        const string positionEndLabelCommandName = "AnimationToolPositionEndLabel";
+
+        const int sliderStart = 0;
+        const int sliderEnd = 100;
+        const int sliderLength = sliderEnd - sliderStart;
+
+        static ToolPathAnimator animator = null;
+
+        public static void Initialize() {
+            Command command;
+
+            command = Command.Create(jumpToStartCommandName);
+            command.IsWriteBlock = false;
+            command.Image = Resources.TransportBackToBeginning;
+            command.Hint = Resources.AnimationToolTransportJumpToStartHint;
+            command.Executing += (sender, e) => Position = 0;
+            command.Updating += Updating;
+
+            command = Command.Create(reverseCommandName);
+            command.IsWriteBlock = false;
+            command.Image = Resources.TransportReverse;
+            command.Executing += Executing;
+            command.Updating += Updating;
+
+            command = Command.Create(playCommandName);
+            command.IsWriteBlock = false;
+            command.Image = Resources.TransportPlay;
+            command.Executing += Executing;
+            command.Updating += Updating;
+
+            command = Command.Create(jumpToEndCommandName);
+            command.IsWriteBlock = false;
+            command.Image = Resources.TransportForwardToEnd;
+            command.Hint = Resources.AnimationToolTransportJumpToEndHint;
+            command.Executing += (sender, e) => Position = 1;
+            command.Updating += Updating;
+
+            command = Command.Create(positionSliderCommandName);
+            command.IsWriteBlock = false;
+            command.Updating += Updating;
+            command.TextChanged += (sender, e) => {
+                var c = (Command)sender;
+                Position = double.Parse(c.Text) / sliderLength;
+                Time = StartTime + Position * (EndTime - StartTime);
+            };
+
+            command = Command.Create(positionLabelCommandName);
+            command.IsWriteBlock = false;
+            command.Updating += Updating;
+
+            command = Command.Create(positionStartLabelCommandName);
+            command.IsWriteBlock = false;
+            command.Updating += Updating;
+
+            command = Command.Create(positionEndLabelCommandName);
+            command.IsWriteBlock = false;
+            command.Updating += Updating;
+
+            IsReversed = false;
+            Position = 0;
+        }
+
+        public static void Reset(ToolPathObject toolPathObj, AnimationTool animationTool) {
+            animator = new ToolPathAnimator(toolPathObj, animationTool);
+            StartLabelCommand.Text = StartTime.ToString("F3");
+            EndLabelCommand.Text = EndTime.ToString("F3");
+        }
+
+        public static void Update(double value) {
+            var state = (SliderState)SliderCommand.ControlState;
+            int v = (int)Math.Round(value * sliderLength);
+            SliderCommand.ControlState = SliderState.Create(v, sliderStart, sliderEnd);
+            LabelCommand.Text = Time.ToString("F3");
+        }
+
+        static void Updating(object sender, EventArgs e) {
+            var command = (Command)sender;
+            command.IsEnabled = AnimationTool != null && (Animation.IsAnimating || ToolPathObject.SelectedToolPath != null);
+
+            if (command != PlayCommand && command != ReverseCommand)
+                return;
+
+            if (Animation.IsAnimating && !Animation.IsPaused) {
+                if (IsReversed) {
+                    PlayCommand.Image = Resources.TransportPlay;
+                    PlayCommand.Hint = Resources.AnimationToolTransportPlayHint;
+                    ReverseCommand.Image = Resources.TransportPause;
+                    ReverseCommand.Hint = Resources.AnimationToolTransportPauseHint;
+                }
+                else {
+                    PlayCommand.Image = Resources.TransportPause;
+                    PlayCommand.Hint = Resources.AnimationToolTransportPauseHint;
+                    ReverseCommand.Image = Resources.TransportReverse;
+                    ReverseCommand.Hint = Resources.AnimationToolTransportReverseHint;
+                }
+            }
+            else {
+                PlayCommand.Image = Resources.TransportPlay;
+                PlayCommand.Hint = Resources.AnimationToolTransportPauseHint;
+                ReverseCommand.Image = Resources.TransportReverse;
+                ReverseCommand.Hint = Resources.AnimationToolTransportReverseHint;
+            }
+        }
+
+        static void Executing(object sender, EventArgs e) {
+            var command = (Command)sender;
+            if (command == PlayCommand)
+                IsReversed = false;
+            if (command == ReverseCommand)
+                IsReversed = true;
+
+            if (Animation.IsAnimating) {
+                Animation.IsPaused = !Animation.IsPaused;
+                animator.WasJustPaused = true;
+            }
+            else {
+                Animate(ToolPathObject.SelectedToolPath);
+            }
+        }
+
+        static void Animate(ToolPathObject toolPathObj) {
+            //animator.Completed += (sender, e) => {
+            //    if (e.Result == AnimationResult.Exhausted) {
+            //        //if (animator.UndoStepAdded)
+            //        //    Application.Undo(1); // rewind to start
+            //        //Animation.Start(message, animator, command); // restart
+            //    }
+            //    //else // animation was canceled or stopped
+            //    //  window.ActiveContext.SingleSelection = toolPathObj.Subject;
+            //};
+
+            animator.WasJustPaused = true;
+            Animation.Start(Resources.AnimatingMessage, animator, Command.AllCommands.Where(c => c.Name.StartsWith("AnimationTool")).ToArray());
+        }
+
+        public static AnimationTool AnimationTool {
+            get {
+                Window window = Window.ActiveWindow;
+                return window == null ? null : window.ActiveTool as AnimationTool;
+            }
+        }
+
+        public static bool IsReversed { get; set; }
+
+        public static double Position {
+            get {
+                var state = (SliderState)SliderCommand.ControlState;
+                return (double)state.Value / sliderLength;
+            }
+            set {
+                Update(value);
+
+                if (animator != null) {
+                    animator.Time = value * animator.TotalTime;
+                    animator.Advance(-1);
+                }
+            }
+        }
+
+        public static double StartTime {
+            get { return 0; }
+        }
+
+        public static double EndTime {
+            get { return animator == null ? 1 : animator.TotalTime; }
+        }
+
+        public static double Time {
+            get { return animator == null ? 0 : animator.Time; }
+            set {
+                if (animator != null)
+                    animator.Time = value;
+            }
+        }
+
+        public static Command PlayCommand {
+            get { return Command.GetCommand(playCommandName); }
+        }
+
+        public static Command ReverseCommand {
+            get { return Command.GetCommand(reverseCommandName); }
+        }
+
+        public static Command SliderCommand {
+            get { return Command.GetCommand(positionSliderCommandName); }
+        }
+
+        public static Command LabelCommand {
+            get { return Command.GetCommand(positionLabelCommandName); }
+        }
+
+        public static Command StartLabelCommand {
+            get { return Command.GetCommand(positionStartLabelCommandName); }
+        }
+
+        public static Command EndLabelCommand {
+            get { return Command.GetCommand(positionEndLabelCommandName); }
+        }
+    }
+
     static class SpeedSlider {
         const string commandName = "AnimationToolSpeedSlider";
         const string labelCommandName = "AnimationToolSpeedLabel";
@@ -52,6 +260,11 @@ namespace SpaceClaim.AddIn.CAM {
         public static void Initialize() {
             Command command = Command.Create(commandName);
             command.IsWriteBlock = false;
+            command.TextChanged += (sender, e) => {
+                var c = (Command)sender;
+                Value = Math.Pow(2, double.Parse(c.Text) / 10 - 1);
+            };
+            
             Command.Create(labelCommandName);
             Value = 1;
         }
@@ -79,6 +292,9 @@ namespace SpaceClaim.AddIn.CAM {
 
         public static double Value {
             get {
+                if (Command == null)
+                    return 0;
+
                 var state = (SliderState)Command.ControlState;
                 return Math.Pow(2, (double)state.Value / 10 - 1);
             }
@@ -91,7 +307,6 @@ namespace SpaceClaim.AddIn.CAM {
         }
     }
 
-
     class AnimationTool : Tool {
         public AnimationTool()
             : base(InteractionMode.Solid) {
@@ -102,87 +317,32 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         protected override void OnInitialize() {
-            var layout = new ToolGuideLayout();
-            layout.AddButton(Command.GetCommand(AnimateCapsule.CommandName));
-            SetToolGuideLayout(layout);
+            ResetAnimation();
         }
 
         protected override IDocObject AdjustSelection(IDocObject docObject) {
-            return docObject as CustomObject;
-        }
+            if (docObject as CustomObject == null)
+                return null;
 
-        protected override void OnEnable(bool enable) {
+            ToolPathObject toolPathObj = ToolPathObject.GetWrapper(docObject as CustomObject);
+            if (toolPathObj != null)
+                return docObject;
 
-
+            return null;
         }
 
         protected override bool OnClickStart(ScreenPoint cursorPos, Line cursorRay) {
             InteractionContext.SingleSelection = InteractionContext.Preselection;
-            return false;
-        }
-    }
-
-    class AnimateCapsule : CommandCapsule {
-        public const string CommandName = "ToolPathAnimate.Animate";
-
-        public AnimateCapsule()
-            : base(CommandName, Resources.AnimationToolPlay, Resources.TransportPlay, Resources.AnimationToolPlay) {
+            ResetAnimation(); return false;
         }
 
-        protected override void OnInitialize(Command command) {
-            command.IsWriteBlock = false;
-        }
+        public void ResetAnimation() {
+            if (InteractionContext.SingleSelection as CustomObject == null)
+                return;
 
-        protected override void OnUpdate(Command command) {
-            command.IsEnabled = AnimationTool != null && (Animation.IsAnimating || ToolPathObject.SelectedToolPath != null);
-
-            if (Animation.IsAnimating && !Animation.IsPaused) {
-                command.Image = Resources.TransportPause;
-                command.Text = Resources.AnimationToolPause;
-                command.Hint = Resources.AnimationToolPause;
-            }
-            else {
-                command.Image = Resources.TransportPlay;
-                command.Text = Resources.AnimationToolPlay;
-                command.Hint = Resources.AnimationToolPlay;
-            }
-        }
-
-        protected override void OnExecute(Command command, ExecutionContext context, Rectangle buttonRect) {
-            if (Animation.IsAnimating) {
-                Animation.IsPaused = !Animation.IsPaused;
-                animator.WasJustPaused = true;
-            }
-            else
-                Animate(command, ToolPathObject.SelectedToolPath);
-        }
-
-        static ToolPathAnimator animator = null;
-        static void Animate(Command command, ToolPathObject toolPathObj) {
-
-            //     Window window = Window.ActiveWindow;
-            //      window.ActiveContext.SingleSelection = null; // clear selection
-
-            animator = new ToolPathAnimator(toolPathObj, AnimationTool);
-
-            animator.Completed += (sender, e) => {
-                if (e.Result == AnimationResult.Exhausted) {
-                    //if (animator.UndoStepAdded)
-                    //    Application.Undo(1); // rewind to start
-                    //Animation.Start(message, animator, command); // restart
-                }
-                //else // animation was canceled or stopped
-                //  window.ActiveContext.SingleSelection = toolPathObj.Subject;
-            };
-
-            Animation.Start(Resources.AnimatingMessage, animator, command);
-        }
-
-        public static AnimationTool AnimationTool {
-            get {
-                Window window = Window.ActiveWindow;
-                return window == null ? null : window.ActiveTool as AnimationTool;
-            }
+            ToolPathObject toolPathObj = ToolPathObject.GetWrapper(InteractionContext.SingleSelection as CustomObject);
+            if (toolPathObj != null)
+                TransportControls.Reset(toolPathObj, this);
         }
     }
 
@@ -231,9 +391,12 @@ namespace SpaceClaim.AddIn.CAM {
                 WasJustPaused = false;
             }
 
+            if (TransportControls.IsReversed)
+                deltaTime *= -1;
+
             time += deltaTime * SpeedSlider.Value;
-            if (time > totalTime)
-                return 0;
+            time = Math.Max(time, 0);
+            time = Math.Min(time, totalTime);
 
             if (!TryGetLocationFromTime(time, out  index, out  ratio))
                 throw new IndexOutOfRangeException();
@@ -251,8 +414,8 @@ namespace SpaceClaim.AddIn.CAM {
             };
 
             animationTool.Rendering = Graphic.Create(style, new[] { toolPrimitive }, null, Matrix.CreateMapping(toolPath.Csys) * Matrix.CreateTranslation(location.Vector));
-
-            AnimateCapsule.AnimationTool.StatusText = string.Format(Resources.AnimationToolMesage, time, totalTime, time / totalTime * 100);
+            animationTool.StatusText = string.Format(Resources.AnimationToolMesage, time, totalTime, time / totalTime * 100);
+            TransportControls.Update(time / totalTime);
 
             lastTime = DateTime.Now;
             return frame + 1;
@@ -279,6 +442,19 @@ namespace SpaceClaim.AddIn.CAM {
 
             throw new NotImplementedException();
             return false;
+        }
+
+        public double Time {
+            get { return time; }
+            set { time = value; }
+        }
+
+        public double TotalTime {
+            get { return totalTime; }
+        }
+
+        public double TotalLength {
+            get { return totalLength; }
         }
     }
 

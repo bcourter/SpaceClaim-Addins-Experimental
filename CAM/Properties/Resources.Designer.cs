@@ -109,9 +109,9 @@ namespace CAM.Properties {
         ///  &lt;panel&gt;
         ///    &lt;group id=&quot;AnimationToolGroup&quot; label=&quot;Profile Options&quot;&gt;
         ///      &lt;container id=&quot;AnimationToolContainer&quot; layoutOrientation=&quot;vertical&quot;&gt;
-        ///        &lt;container id=&quot;AnimationToolStrategyContainer&quot; layoutOrientation=&quot;horizontal&quot;&gt;
-        ///          &lt;label id=&quot;AnimationToolSpeedLabel&quot; width=&quot;40&quot;/&gt;
-        ///          &lt;slider id=&quot;AnimationToolSpeedSlider&quot; width=&quot;90&quot; command=&quot;AnimationToolSpeedSlider&quot; labelVisible=&quot;true&quot; /&gt; [rest of string was truncated]&quot;;.
+        ///        &lt;container id=&quot;AnimationToolTransportContainer&quot; layoutOrientation=&quot;horizontal&quot;&gt;
+        ///          &lt;button id=&quot;AnimationToolJumpToStartButton&quot; command=&quot;AnimationToolJumpToStartButton&quot; /&gt;
+        ///          &lt;button id=&quot;AnimationToolReverseButton&quot; command=&quot;AnimationToolReve [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string AnimationToolOptions {
             get {
@@ -138,6 +138,15 @@ namespace CAM.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Position: {0:F2} min.
+        /// </summary>
+        internal static string AnimationToolPositionLabel {
+            get {
+                return ResourceManager.GetString("AnimationToolPositionLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Speed: {0:F2}x.
         /// </summary>
         internal static string AnimationToolSpeedLabel {
@@ -152,6 +161,51 @@ namespace CAM.Properties {
         internal static string AnimationToolStep {
             get {
                 return ResourceManager.GetString("AnimationToolStep", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Jump to the last position.
+        /// </summary>
+        internal static string AnimationToolTransportJumpToEndHint {
+            get {
+                return ResourceManager.GetString("AnimationToolTransportJumpToEndHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Jump to the first position.
+        /// </summary>
+        internal static string AnimationToolTransportJumpToStartHint {
+            get {
+                return ResourceManager.GetString("AnimationToolTransportJumpToStartHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Pause playback.
+        /// </summary>
+        internal static string AnimationToolTransportPauseHint {
+            get {
+                return ResourceManager.GetString("AnimationToolTransportPauseHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Play from the current position.
+        /// </summary>
+        internal static string AnimationToolTransportPlayHint {
+            get {
+                return ResourceManager.GetString("AnimationToolTransportPlayHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Play in reverse from the current position.
+        /// </summary>
+        internal static string AnimationToolTransportReverseHint {
+            get {
+                return ResourceManager.GetString("AnimationToolTransportReverseHint", resourceCulture);
             }
         }
         

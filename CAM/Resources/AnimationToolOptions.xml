@@ -3,9 +3,24 @@
   <panel>
     <group id="AnimationToolGroup" label="Profile Options">
       <container id="AnimationToolContainer" layoutOrientation="vertical">
-        <container id="AnimationToolStrategyContainer" layoutOrientation="horizontal">
-          <label id="AnimationToolSpeedLabel" command="AnimationToolSpeedLabel" width="40"/>
-          <slider id="AnimationToolSpeedSlider" command="AnimationToolSpeedSlider" width="90" labelVisible="false" />
+        <container id="AnimationToolTransportContainer" layoutOrientation="horizontal" resizeItemsToFit="true" isGroup="1" >
+          <button id="AnimationToolJumpToStartButton" command="AnimationToolJumpToStartButton" />
+          <button id="AnimationToolReverseButton" command="AnimationToolReverseButton" />
+          <button id="AnimationToolPlayButton" command="AnimationToolPlayButton" />
+          <button id="AnimationToolJumpToEndButton" command="AnimationToolJumpToEndButton" />
+        </container>
+        <container id="AnimationToolPositionContainer" layoutOrientation="horizontal">
+          <label id="AnimationToolPositionStartLabel" command="AnimationToolPositionStartLabel" width="50" align="near" />
+          <label id="AnimationToolPositionLabel" command="AnimationToolPositionLabel" width="100" align="center" />
+          <label id="AnimationToolPositionEndLabel" command="AnimationToolPositionEndLabel" width="50" align="far" />
+        </container>
+        <container id="AnimationToolPositionContainer" layoutOrientation="horizontal">
+          <slider id="AnimationToolPositionSlider" command="AnimationToolPositionSlider" width="200" labelVisible="false" />
+        </container>
+
+        <container id="AnimationToolSpeedContainer" layoutOrientation="horizontal">
+          <label id="AnimationToolSpeedLabel" command="AnimationToolSpeedLabel" width="80" align="far" />
+          <slider id="AnimationToolSpeedSlider" command="AnimationToolSpeedSlider" width="120" labelVisible="false" />
         </container>
       </container>
     </group>
