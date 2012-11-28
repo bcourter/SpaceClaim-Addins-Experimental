@@ -56,7 +56,7 @@ namespace SpaceClaim.AddIn.CAM {
         const int sliderEnd = 100;
         const int sliderLength = sliderEnd - sliderStart;
 
-        static ToolPathAnimator animator = null;
+        static AnimationTool animationTool;
 
         public static void Initialize() {
             Command command;
@@ -93,7 +93,7 @@ namespace SpaceClaim.AddIn.CAM {
             command.TextChanged += (sender, e) => {
                 var c = (Command)sender;
                 Position = double.Parse(c.Text) / sliderLength;
-                Time = StartTime + Position * (EndTime - StartTime);
+                AnimationTool.Time = StartTime + Position * (EndTime - StartTime);
             };
 
             command = Command.Create(positionLabelCommandName);
@@ -112,22 +112,25 @@ namespace SpaceClaim.AddIn.CAM {
             Position = 0;
         }
 
-        public static void Reset(ToolPathObject toolPathObj, AnimationTool animationTool) {
-            animator = new ToolPathAnimator(toolPathObj, animationTool);
+        public static void Reset(AnimationTool animationTool) {
+            TransportControls.animationTool = animationTool;
             StartLabelCommand.Text = StartTime.ToString("F3");
             EndLabelCommand.Text = EndTime.ToString("F3");
+            Update(animationTool.Time / animationTool.TotalTime);
         }
 
         public static void Update(double value) {
             var state = (SliderState)SliderCommand.ControlState;
             int v = (int)Math.Round(value * sliderLength);
+            v = Math.Max(v, sliderStart);
+            v = Math.Min(v, sliderEnd);
             SliderCommand.ControlState = SliderState.Create(v, sliderStart, sliderEnd);
-            LabelCommand.Text = Time.ToString("F3");
+            LabelCommand.Text = AnimationTool.Time.ToString("F3");
         }
 
         static void Updating(object sender, EventArgs e) {
             var command = (Command)sender;
-            command.IsEnabled = AnimationTool != null && (Animation.IsAnimating || ToolPathObject.SelectedToolPath != null);
+            command.IsEnabled = AnimationTool != null && IsEnabled && (Animation.IsAnimating || ToolPathObject.SelectedToolPath != null);
 
             if (command != PlayCommand && command != ReverseCommand)
                 return;
@@ -161,38 +164,24 @@ namespace SpaceClaim.AddIn.CAM {
             if (command == ReverseCommand)
                 IsReversed = true;
 
-            if (Animation.IsAnimating) {
-                Animation.IsPaused = !Animation.IsPaused;
-                animator.WasJustPaused = true;
-            }
-            else {
-                Animate(ToolPathObject.SelectedToolPath);
-            }
-        }
-
-        static void Animate(ToolPathObject toolPathObj) {
-            //animator.Completed += (sender, e) => {
-            //    if (e.Result == AnimationResult.Exhausted) {
-            //        //if (animator.UndoStepAdded)
-            //        //    Application.Undo(1); // rewind to start
-            //        //Animation.Start(message, animator, command); // restart
-            //    }
-            //    //else // animation was canceled or stopped
-            //    //  window.ActiveContext.SingleSelection = toolPathObj.Subject;
-            //};
-
-            animator.WasJustPaused = true;
-            Animation.Start(Resources.AnimatingMessage, animator, Command.AllCommands.Where(c => c.Name.StartsWith("AnimationTool")).ToArray());
+            if (Animation.IsAnimating)
+                Animation.Stop();
+            else
+                AnimationTool.Animate();
         }
 
         public static AnimationTool AnimationTool {
             get {
-                Window window = Window.ActiveWindow;
-                return window == null ? null : window.ActiveTool as AnimationTool;
+                return animationTool;
+
+                //Window window = Window.ActiveWindow;
+                // return window == null ? null : window.ActiveTool as AnimationTool;
             }
         }
 
         public static bool IsReversed { get; set; }
+
+        public static bool IsEnabled { get; set; }
 
         public static double Position {
             get {
@@ -200,13 +189,13 @@ namespace SpaceClaim.AddIn.CAM {
                 return (double)state.Value / sliderLength;
             }
             set {
-                Update(value);
+                if (AnimationTool == null)
+                    return;
 
-                if (animator != null) {
-                    animator.Time = value * animator.TotalTime;
-                    animator.Advance(-1);
-                }
+                Update(value);
+                AnimationTool.Time = value * AnimationTool.TotalTime;
             }
+
         }
 
         public static double StartTime {
@@ -214,15 +203,7 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         public static double EndTime {
-            get { return animator == null ? 1 : animator.TotalTime; }
-        }
-
-        public static double Time {
-            get { return animator == null ? 0 : animator.Time; }
-            set {
-                if (animator != null)
-                    animator.Time = value;
-            }
+            get { return AnimationTool.TotalTime; }
         }
 
         public static Command PlayCommand {
@@ -263,7 +244,7 @@ namespace SpaceClaim.AddIn.CAM {
                 var c = (Command)sender;
                 Value = Math.Pow(2, double.Parse(c.Text) / 10 - 1);
             };
-            
+
             Command.Create(labelCommandName);
             Value = 1;
         }
@@ -307,6 +288,18 @@ namespace SpaceClaim.AddIn.CAM {
     }
 
     class AnimationTool : Tool {
+        IList<CutterLocation> locations;
+        double totalLength = 0;
+        double totalTime = 0;
+        double[] timeToLocation;
+
+        ToolPathObject toolPathObj;
+        ToolPath toolPath;
+
+        int index;
+        double ratio;
+        double time = 0;
+
         public AnimationTool()
             : base(InteractionMode.Solid) {
         }
@@ -316,7 +309,7 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         protected override void OnInitialize() {
-            ResetAnimation();
+            ResetFromSelection();
         }
 
         protected override IDocObject AdjustSelection(IDocObject docObject) {
@@ -330,71 +323,56 @@ namespace SpaceClaim.AddIn.CAM {
             return null;
         }
 
-        protected override bool OnClickStart(ScreenPoint cursorPos, Line cursorRay) {
-            InteractionContext.SingleSelection = InteractionContext.Preselection;
-            ResetAnimation(); return false;
+        protected override void OnEnable(bool enable) {
+            if (enable)
+                Window.SelectionChanged += Window_SelectionChanged;
+            else
+                Window.SelectionChanged -= Window_SelectionChanged;
         }
 
-        public void ResetAnimation() {
+        void Window_SelectionChanged(object sender, EventArgs e) {
+            ResetFromSelection();
+        }
+
+        protected override bool OnClickStart(ScreenPoint cursorPos, Line cursorRay) {
+            InteractionContext.SingleSelection = InteractionContext.Preselection;
+            return false;
+        }
+
+        public void ResetFromSelection() {
             if (InteractionContext.SingleSelection as ICustomObject == null)
                 return;
 
-            ToolPathObject toolPathObj = ToolPathObject.GetWrapper((InteractionContext.SingleSelection as ICustomObject).Master);
-            if (toolPathObj != null)
-                TransportControls.Reset(toolPathObj, this);
-        }
-    }
+            toolPathObj = ToolPathObject.GetWrapper((InteractionContext.SingleSelection as ICustomObject).Master);
+            if (toolPathObj == null) {
+                TransportControls.IsEnabled = false;
+                return;
+            }
 
-    class ToolPathAnimator : Animator {
-        ToolPathObject toolPathObj;
-        ToolPath toolPath;
-        AnimationTool animationTool;
-
-        IList<CutterLocation> locations;
-        double totalLength = 0;
-        double totalTime = 0;
-        double[] timeToLocation;
-
-        public bool WasJustPaused { get; set; }
-        DateTime lastTime;
-
-        public ToolPathAnimator(ToolPathObject toolPathObj, AnimationTool animationTool) {
-            this.toolPathObj = toolPathObj;
-            this.toolPath = toolPathObj.ToolPath;
-            this.animationTool = animationTool;
-
+            toolPath = toolPathObj.ToolPath;
             locations = toolPathObj.CutterLocations;
             timeToLocation = new double[locations.Count];
 
+            time = 0;
+            totalTime = 0;
             timeToLocation[0] = 0;
             for (int i = 0; i < locations.Count - 1; i++) {
                 double length = (locations[i + 1].Point - locations[i].Point).Magnitude;
                 totalLength += length;
                 double rate = locations[i + 1].IsRapid ? toolPath.CuttingParameters.FeedRateRapid : toolPath.CuttingParameters.FeedRate;
-                double time = length / rate;
-                totalTime += time;
+                double dtime = length / rate;
+                totalTime += dtime;
                 timeToLocation[i + 1] = totalTime;
             }
+            timeToLocation = timeToLocation.Distinct().ToArray();
 
-            lastTime = DateTime.Now;
-            WasJustPaused = false;
+            SetGraphics();
+            TransportControls.IsEnabled = true;
+            TransportControls.Reset(this);
         }
 
-        int index;
-        double ratio;
-        double time = 0;
-        public override int Advance(int frame) {
-            double deltaTime = (double)(DateTime.Now - lastTime).Ticks / TimeSpan.TicksPerMinute;
-            if (WasJustPaused) {
-                deltaTime = 0;
-                WasJustPaused = false;
-            }
-
-            if (TransportControls.IsReversed)
-                deltaTime *= -1;
-
-            time += deltaTime * SpeedSlider.Value;
-            time = Math.Max(time, 0);
+        public void SetGraphics() {
+            double time = Math.Max(this.time, 0);
             time = Math.Min(time, totalTime);
 
             if (!TryGetLocationFromTime(time, out  index, out  ratio))
@@ -412,16 +390,12 @@ namespace SpaceClaim.AddIn.CAM {
                 LineColor = color
             };
 
-            animationTool.Rendering = Graphic.Create(style, new[] { toolPrimitive }, null, Matrix.CreateMapping(toolPath.Csys) * Matrix.CreateTranslation(location.Vector));
-            animationTool.StatusText = string.Format(Resources.AnimationToolMesage, time, totalTime, time / totalTime * 100);
-            TransportControls.Update(time / totalTime);
-
-            lastTime = DateTime.Now;
-            return frame + 1;
+            Rendering = Graphic.Create(style, new[] { toolPrimitive }, null, Matrix.CreateMapping(toolPath.Csys) * Matrix.CreateTranslation(location.Vector));
+            StatusText = string.Format(Resources.AnimationToolMesage, time, totalTime, time / totalTime * 100);
         }
 
-        protected override void OnCompleted(AnimationCompletedEventArgs args) {
-            base.OnCompleted(args);
+        public void Animate() {
+            Animation.Start(Resources.AnimatingMessage, new ToolPathAnimator(this), Command.AllCommands.Where(c => c.Name.StartsWith("AnimationTool")).ToArray());
         }
 
         bool TryGetLocationFromTime(double time, out int index, out double ratio) {
@@ -440,20 +414,44 @@ namespace SpaceClaim.AddIn.CAM {
             }
 
             throw new NotImplementedException();
-            return false;
         }
 
         public double Time {
             get { return time; }
-            set { time = value; }
+            set {
+                time = value;
+                SetGraphics();
+                TransportControls.Update(time / totalTime);
+
+                //   if (animator != null)
+                //       animator.Advance(-1);
+            }
         }
 
-        public double TotalTime {
-            get { return totalTime; }
+        public double TotalTime { get { return totalTime; } }
+
+        public double TotalLength { get { return totalLength; } }
+    }
+
+    class ToolPathAnimator : Animator {
+        AnimationTool animationTool;
+        DateTime lastTime;
+
+        public ToolPathAnimator(AnimationTool animationTool) {
+            this.animationTool = animationTool;
+            lastTime = DateTime.Now;
         }
 
-        public double TotalLength {
-            get { return totalLength; }
+        public override int Advance(int frame) {
+            double deltaTime = (double)(DateTime.Now - lastTime).Ticks / TimeSpan.TicksPerMinute;
+
+            if (TransportControls.IsReversed)
+                deltaTime *= -1;
+
+            animationTool.Time += deltaTime * SpeedSlider.Value;
+
+            lastTime = DateTime.Now;
+            return frame + 1;
         }
     }
 
