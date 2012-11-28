@@ -33,7 +33,6 @@ namespace SpaceClaim.AddIn.CAM {
 
         protected override void OnUpdate(Command command) {
             Window window = Window.ActiveWindow;
-            command.IsEnabled = ToolPathObject.SelectedToolPath != null;
             command.IsChecked = window != null && window.ActiveTool is AnimationTool;
         }
 
@@ -321,10 +320,10 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         protected override IDocObject AdjustSelection(IDocObject docObject) {
-            if (docObject as CustomObject == null)
+            if (docObject as ICustomObject == null)
                 return null;
 
-            ToolPathObject toolPathObj = ToolPathObject.GetWrapper(docObject as CustomObject);
+            ToolPathObject toolPathObj = ToolPathObject.GetWrapper((docObject as ICustomObject).Master);
             if (toolPathObj != null)
                 return docObject;
 
@@ -337,10 +336,10 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         public void ResetAnimation() {
-            if (InteractionContext.SingleSelection as CustomObject == null)
+            if (InteractionContext.SingleSelection as ICustomObject == null)
                 return;
 
-            ToolPathObject toolPathObj = ToolPathObject.GetWrapper(InteractionContext.SingleSelection as CustomObject);
+            ToolPathObject toolPathObj = ToolPathObject.GetWrapper((InteractionContext.SingleSelection as ICustomObject).Master);
             if (toolPathObj != null)
                 TransportControls.Reset(toolPathObj, this);
         }

@@ -237,7 +237,11 @@ namespace SpaceClaim.AddIn.CAM {
                 if (docObject == null)
                     return null;
 
-                return GetWrapper(docObject as CustomObject);
+                ICustomObject iCustomObject = docObject as ICustomObject;
+                if (iCustomObject == null)
+                    return null;
+
+                return GetWrapper(iCustomObject.Master);
             }
         }
 
