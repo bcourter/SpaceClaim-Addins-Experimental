@@ -138,9 +138,6 @@
   <data name="FaceToolPathToolButtonText" xml:space="preserve">
     <value>UV</value>
   </data>
-  <data name="UVPathName" xml:space="preserve">
-    <value>UV Tool Path</value>
-  </data>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
   <data name="ToolPath32" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\resources\toolpath32.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
@@ -225,5 +222,47 @@
   </data>
   <data name="AnimationToolTransportReverseHint" xml:space="preserve">
     <value>Play in reverse from the current position</value>
+  </data>
+  <data name="Color" xml:space="preserve">
+    <value>Color</value>
+  </data>
+  <data name="CutDepth" xml:space="preserve">
+    <value>Depth of Cut</value>
+  </data>
+  <data name="CuttingHeight" xml:space="preserve">
+    <value>Cutting Height</value>
+  </data>
+  <data name="CuttingParameters" xml:space="preserve">
+    <value>Cutting Parameters</value>
+  </data>
+  <data name="CuttingToolParameters" xml:space="preserve">
+    <value>Cutting Tool Parameters</value>
+  </data>
+  <data name="Diameter" xml:space="preserve">
+    <value>Tool Diameter</value>
+  </data>
+  <data name="FeedRate" xml:space="preserve">
+    <value>Feed Rate</value>
+  </data>
+  <data name="FeedRateRapid" xml:space="preserve">
+    <value>Rapid Feed Rate</value>
+  </data>
+  <data name="Increment" xml:space="preserve">
+    <value>Increment Length</value>
+  </data>
+  <data name="RestZ" xml:space="preserve">
+    <value>Z Clearance Height</value>
+  </data>
+  <data name="Strategy" xml:space="preserve">
+    <value>Strategy</value>
+  </data>
+  <data name="ToolPathFaceSpiral" xml:space="preserve">
+    <value>Spiral</value>
+  </data>
+  <data name="ToolPathFaceUV" xml:space="preserve">
+    <value>UV Cutline</value>
+  </data>
+  <data name="Vizualization" xml:space="preserve">
+    <value>Visualization</value>
   </data>
 </root>

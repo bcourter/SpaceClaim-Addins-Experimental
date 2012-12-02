@@ -264,13 +264,7 @@ namespace SpaceClaim.AddIn.CAM {
                 return;
 
             ToolPath toolPath = toolPathObj.ToolPath;
-            if (strategy == "UV Contour")
-                toolPath = new UVFacingToolPath(((FaceToolPath)toolPath).Face, toolPath.CuttingTool, toolPath.CuttingParameters);
-
-            if (strategy == "Spiral")
-                toolPath = new SpiralFacingToolPath(((FaceToolPath)toolPath).Face, toolPath.CuttingTool, toolPath.CuttingParameters);
-
-            WriteBlock.ExecuteTask("Change toolpath strategy to " + strategy, () => { toolPathObj.ToolPath = toolPath; toolPathObj.Regenerate(); });
+            toolPathObj.SetToolPathByName(strategy);
         }
 
         void cuttingToolCommand_TextChanged(object sender, CommandTextChangedEventArgs e) {

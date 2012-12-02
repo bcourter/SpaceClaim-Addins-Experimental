@@ -9,10 +9,10 @@ using System.Drawing;
 using System.Threading;
 using System.Linq;
 using System.Windows.Forms;
-using SpaceClaim.Api.V10;
+//using SpaceClaim.Api.V10;
 using SpaceClaim.Api.V10.Display;
 using CAM.Properties;
-using SpaceClaim.Api.V10.Extensibility;
+//using SpaceClaim.Api.V10.Extensibility;
 using SpaceClaim.Api.V10.Geometry;
 using SpaceClaim.Api.V10.Modeler;
 using Point = SpaceClaim.Api.V10.Geometry.Point;
@@ -64,7 +64,6 @@ namespace SpaceClaim.AddIn.CAM {
 
             return cutterLocations;
         }
-
     }
 
     public abstract class FaceToolPath : ToolPath {
@@ -210,9 +209,7 @@ namespace SpaceClaim.AddIn.CAM {
                 return (int)Math.Ceiling(maxLength / CuttingParameters.StepOver);
             }
         }
-
     }
-
 
     public class SpiralFacingToolPath : FaceToolPath {
         Plane plane;
@@ -252,9 +249,8 @@ namespace SpaceClaim.AddIn.CAM {
 
         public override IList<CutterLocation> GetCutterLocations() {
             SpiralStrategy strategy = new SpiralStrategy(plane, curves, CuttingTool.Radius, this);
-            return strategy.GetSpiralCuttingLocations();    
+            return strategy.GetSpiralCuttingLocations();
         }
-
     }
 
     public class SpiralStrategy {
@@ -291,6 +287,7 @@ namespace SpaceClaim.AddIn.CAM {
             return locations;
         }
 
+        // Does the heavy lifting of creating the offsets for each spiral, from the outside in, but to not attempt to order the result
         private ChainTreeNode BuildChainTreeNodes() {
             var positions = new List<IList<Point>>();
             Vector toCenter = Direction.DirZ * tool.Radius;
@@ -315,6 +312,7 @@ namespace SpaceClaim.AddIn.CAM {
                 RecurseBuildChainTreeNodes(node, parameters.StepOver, ++depth);
         }
 
+        // Order the heirarchy of islands and add clearance heights
         bool isOnSpiral = false;
         private void RecurseDescendChainTreeNodes(List<CutterLocation> locations, ChainTreeNode parent) {
             Point initialPoint = locations.Count == 0 ? Point.Origin : locations[locations.Count - 1].Center;
@@ -337,7 +335,9 @@ namespace SpaceClaim.AddIn.CAM {
                 RecurseDescendChainTreeNodes(locations, node);
                 isOnSpiral = false;
 
-                locations.Add(new CutterLocation(toolPath.RestPoint(locations[locations.Count - 1].Center), tip, true));
+                var endLocation = new CutterLocation(toolPath.RestPoint(locations[locations.Count - 1].Center), tip, true);
+                if (locations[locations.Count - 1].Center != endLocation.Center)
+                    locations.Add(endLocation);
             }
         }
 

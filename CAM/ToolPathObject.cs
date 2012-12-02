@@ -20,14 +20,22 @@ using ScreenPoint = System.Drawing.Point;
 using SpaceClaim.AddInLibrary;
 
 namespace SpaceClaim.AddIn.CAM {
+    public delegate void ToolPathChangedEventHandler(object sender, EventArgs e);
+
     public class ToolPathObject : CustomWrapper<ToolPathObject> {
         readonly DesignFace desFace;
         Color color;
         ToolPath toolPath;
         IList<CutterLocation> cutterLocations;
 
-        const double tau = Math.PI * 2;
         static List<ToolPathObject> allUVPaths = new List<ToolPathObject>();
+
+        public static string[] ToolPathTypeNames = new[] { 
+            Resources.ToolPathFaceUV,
+            Resources.ToolPathFaceSpiral
+        };
+
+        public event ToolPathChangedEventHandler Changed;
 
         // creates a wrapper for an existing custom object
         protected ToolPathObject(CustomObject subject)
@@ -63,6 +71,7 @@ namespace SpaceClaim.AddIn.CAM {
         public void Regenerate() {
             this.Initialize();
             cutterLocations = toolPath.GetCutterLocations().ToArray();
+            Changed(this, new EventArgs());
         }
 
 #if false
@@ -231,6 +240,26 @@ namespace SpaceClaim.AddIn.CAM {
             return cutterLocations;
         }
 
+        public void SetToolPathByName(string strategy) {
+            if (strategy == Resources.ToolPathFaceUV)
+                toolPath = new UVFacingToolPath(((FaceToolPath)toolPath).Face, toolPath.CuttingTool, toolPath.CuttingParameters);
+
+            if (strategy == Resources.ToolPathFaceSpiral)
+                toolPath = new SpiralFacingToolPath(((FaceToolPath)toolPath).Face, toolPath.CuttingTool, toolPath.CuttingParameters);
+
+            WriteBlock.ExecuteTask("Change toolpath strategy to " + strategy, () => { Regenerate(); });
+        }
+
+        public string GetToolPathName() {
+            if (toolPath is UVFacingToolPath)
+                return Resources.ToolPathFaceUV;
+
+            if (toolPath is SpiralFacingToolPath)
+                return Resources.ToolPathFaceSpiral;
+
+            throw new NotImplementedException();
+        }
+
         public static ToolPathObject SelectedToolPath {
             get {
                 IDocObject docObject = Window.ActiveWindow.ActiveContext.SingleSelection;
@@ -247,6 +276,25 @@ namespace SpaceClaim.AddIn.CAM {
 
         public static IList<ToolPathObject> AllUVPaths {
             get { return allUVPaths; }
+        }
+
+        static public ICollection<PropertyDisplay> Properties {
+            get {
+                return new PropertyDisplay[] {
+                    new ToolPathStrategyProperty(),
+                    new ToolPathColorProperty(),
+
+                    new ToolPathPropertyDisplay(Resources.CuttingToolParameters, Resources.Diameter, (toolPathObj) => toolPathObj.ToolPath.CuttingTool.CuttingHeight, (toolPathObj, value) => toolPathObj.ToolPath.CuttingTool.CuttingHeight = value),
+                    new ToolPathPropertyDisplay(Resources.CuttingToolParameters, Resources.CuttingHeight, (toolPathObj) => toolPathObj.ToolPath.CuttingTool.Radius * 2, (toolPathObj, value) => toolPathObj.ToolPath.CuttingTool.Radius = value/2),
+              
+                    new ToolPathPropertyDisplay(Resources.CuttingParameters, Resources.StepOver, (toolPathObj) => toolPathObj.ToolPath.CuttingParameters.StepOver, (toolPathObj, value) => toolPathObj.ToolPath.CuttingParameters.StepOver = value),
+                    new ToolPathPropertyDisplay(Resources.CuttingParameters, Resources.CutDepth, (toolPathObj) => toolPathObj.ToolPath.CuttingParameters.CutDepth, (toolPathObj, value) => toolPathObj.ToolPath.CuttingParameters.CutDepth = value),
+                    new ToolPathPropertyDisplay(Resources.CuttingParameters, Resources.FeedRate, (toolPathObj) => toolPathObj.ToolPath.CuttingParameters.FeedRate, (toolPathObj, value) => toolPathObj.ToolPath.CuttingParameters.FeedRate = value),
+                    new ToolPathPropertyDisplay(Resources.CuttingParameters, Resources.FeedRateRapid, (toolPathObj) => toolPathObj.ToolPath.CuttingParameters.FeedRateRapid, (toolPathObj, value) => toolPathObj.ToolPath.CuttingParameters.FeedRateRapid = value), 
+                    new ToolPathPropertyDisplay(Resources.CuttingParameters, Resources.RestZ, (toolPathObj) => toolPathObj.ToolPath.CuttingParameters.RestZ, (toolPathObj, value) => toolPathObj.ToolPath.CuttingParameters.RestZ = value),
+                    new ToolPathPropertyDisplay(Resources.CuttingParameters, Resources.Increment, (toolPathObj) => toolPathObj.ToolPath.CuttingParameters.Increment, (toolPathObj, value) => toolPathObj.ToolPath.CuttingParameters.Increment = value)   
+                };
+            }
         }
 
         public DesignFace DesFace {
@@ -279,6 +327,126 @@ namespace SpaceClaim.AddIn.CAM {
             get { return cutterLocations; }
         }
 
+    }
+
+    public class ToolPathPropertyDisplay : SimplePropertyDisplay {
+        Func<ToolPathObject, double> getValue;
+        Action<ToolPathObject, double> setValue;
+
+        public ToolPathPropertyDisplay(string category, string name, Func<ToolPathObject, double> getValue, Action<ToolPathObject, double> setValue)
+            : base(category, name) {
+            this.getValue = getValue;
+            this.setValue = setValue;
+        }
+
+        public override string GetValue(IDocObject obj) {
+            Debug.Assert(obj != null);
+
+            var iCustomObj = obj as ICustomObject;
+            if (iCustomObj != null) {
+                var toolPathObj = ToolPathObject.GetWrapper(iCustomObj.Master);
+                if (toolPathObj != null) {
+                    return Window.ActiveWindow.Units.Length.Format(getValue(toolPathObj));
+                }
+            }
+            return null;
+        }
+
+        public override bool SetValue(IDocObject obj, string value) {
+            Debug.Assert(obj != null);
+            Debug.Assert(!string.IsNullOrEmpty(value));
+
+            double val;
+            if (!Window.ActiveWindow.Units.Length.TryParse(value, out val))
+                return false;
+            if (!Accuracy.LengthIsPositive(val))
+                return false;
+
+            var iCustomObj = (ICustomObject)obj;
+            var toolPathObj = ToolPathObject.GetWrapper(iCustomObj.Master);
+            setValue(toolPathObj, val);
+            toolPathObj.Regenerate();
+            return true;
+        }
+    }
+
+    class ToolPathStrategyProperty : SimplePropertyDisplay {
+        public ToolPathStrategyProperty()
+            : base(Resources.Strategy, Resources.Strategy) {
+        }
+
+        public override ICollection<string> AllowableValues { get { return ToolPathObject.ToolPathTypeNames; } }
+
+        public override string GetValue(IDocObject obj) {
+            Debug.Assert(obj != null);
+
+            var iCustomObj = obj as ICustomObject;
+            if (iCustomObj != null) {
+                var toolPathObj = ToolPathObject.GetWrapper(iCustomObj.Master);
+                if (toolPathObj != null && toolPathObj.ToolPath != null) {
+                    return toolPathObj.GetToolPathName();
+                }
+            }
+            return null;
+        }
+
+        public override bool SetValue(IDocObject obj, string value) {
+            Debug.Assert(obj != null);
+            Debug.Assert(!string.IsNullOrEmpty(value));
+
+            var iCustomObj = (ICustomObject)obj;
+            var toolPathObj = ToolPathObject.GetWrapper(iCustomObj.Master);
+            toolPathObj.SetToolPathByName(value);
+            //           toolPathObj.Regenerate();
+            return true;
+        }
+    }
+
+    class ToolPathColorProperty : SimplePropertyDisplay {
+        static readonly Color[] colorList = {
+			Color.Gray,
+			Color.Red,
+			Color.Yellow,
+			Color.Green,
+			Color.Cyan,
+			Color.Blue,
+			Color.Magenta
+		};
+
+        public ToolPathColorProperty()
+            : base(Resources.Vizualization, Resources.Color) {
+        }
+
+        public override ICollection<string> AllowableValues { get { return Array.ConvertAll(colorList, c => c.Name); } }
+
+        public override string GetValue(IDocObject obj) {
+            Debug.Assert(obj != null);
+
+            var iCustomObj = obj as ICustomObject;
+            if (iCustomObj != null) {
+                var toolPathObj = ToolPathObject.GetWrapper(iCustomObj.Master);
+                if (toolPathObj != null && toolPathObj.ToolPath != null) {
+                    return toolPathObj.Color.Name;
+                }
+            }
+            return null;
+        }
+
+        public override bool SetValue(IDocObject obj, string value) {
+            Debug.Assert(obj != null);
+            Debug.Assert(!string.IsNullOrEmpty(value));
+
+            var iCustomObj = (ICustomObject)obj;
+            var toolPathObj = ToolPathObject.GetWrapper(iCustomObj.Master);
+            for (int i = 0; i < colorList.Length; i++) {
+                if (AllowableValues.ToArray()[i] == value) {
+                    toolPathObj.Color = colorList[i];
+                    break;
+                }
+            }
+            //           toolPathObj.Regenerate();
+            return true;
+        }
     }
 
 }

@@ -109,9 +109,9 @@ namespace CAM.Properties {
         ///  &lt;panel&gt;
         ///    &lt;group id=&quot;AnimationToolGroup&quot; label=&quot;Profile Options&quot;&gt;
         ///      &lt;container id=&quot;AnimationToolContainer&quot; layoutOrientation=&quot;vertical&quot;&gt;
-        ///        &lt;container id=&quot;AnimationToolTransportContainer&quot; layoutOrientation=&quot;horizontal&quot;&gt;
+        ///        &lt;container id=&quot;AnimationToolTransportContainer&quot; layoutOrientation=&quot;horizontal&quot; resizeItemsToFit=&quot;true&quot; isGroup=&quot;1&quot; &gt;
         ///          &lt;button id=&quot;AnimationToolJumpToStartButton&quot; command=&quot;AnimationToolJumpToStartButton&quot; /&gt;
-        ///          &lt;button id=&quot;AnimationToolReverseButton&quot; command=&quot;AnimationToolReve [rest of string was truncated]&quot;;.
+        ///          &lt;button id=&quot;AnimationToolReve [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string AnimationToolOptions {
             get {
@@ -210,6 +210,60 @@ namespace CAM.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Color.
+        /// </summary>
+        internal static string Color {
+            get {
+                return ResourceManager.GetString("Color", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Depth of Cut.
+        /// </summary>
+        internal static string CutDepth {
+            get {
+                return ResourceManager.GetString("CutDepth", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cutting Height.
+        /// </summary>
+        internal static string CuttingHeight {
+            get {
+                return ResourceManager.GetString("CuttingHeight", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cutting Parameters.
+        /// </summary>
+        internal static string CuttingParameters {
+            get {
+                return ResourceManager.GetString("CuttingParameters", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cutting Tool Parameters.
+        /// </summary>
+        internal static string CuttingToolParameters {
+            get {
+                return ResourceManager.GetString("CuttingToolParameters", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Tool Diameter.
+        /// </summary>
+        internal static string Diameter {
+            get {
+                return ResourceManager.GetString("Diameter", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Create and edit UV tool paths..
         /// </summary>
         internal static string FaceToolPathToolButtonHint {
@@ -253,11 +307,56 @@ namespace CAM.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Feed Rate.
+        /// </summary>
+        internal static string FeedRate {
+            get {
+                return ResourceManager.GetString("FeedRate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Rapid Feed Rate.
+        /// </summary>
+        internal static string FeedRateRapid {
+            get {
+                return ResourceManager.GetString("FeedRateRapid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Increment Length.
+        /// </summary>
+        internal static string Increment {
+            get {
+                return ResourceManager.GetString("Increment", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Z Clearance Height.
+        /// </summary>
+        internal static string RestZ {
+            get {
+                return ResourceManager.GetString("RestZ", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Step Over.
         /// </summary>
         internal static string StepOver {
             get {
                 return ResourceManager.GetString("StepOver", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Strategy.
+        /// </summary>
+        internal static string Strategy {
+            get {
+                return ResourceManager.GetString("Strategy", resourceCulture);
             }
         }
         
@@ -274,6 +373,24 @@ namespace CAM.Properties {
             get {
                 object obj = ResourceManager.GetObject("ToolPath32", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Spiral.
+        /// </summary>
+        internal static string ToolPathFaceSpiral {
+            get {
+                return ResourceManager.GetString("ToolPathFaceSpiral", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to UV Cutline.
+        /// </summary>
+        internal static string ToolPathFaceUV {
+            get {
+                return ResourceManager.GetString("ToolPathFaceUV", resourceCulture);
             }
         }
         
@@ -349,15 +466,6 @@ namespace CAM.Properties {
             }
         }
         
-        /// <summary>
-        ///   Looks up a localized string similar to UV Tool Path.
-        /// </summary>
-        internal static string UVPathName {
-            get {
-                return ResourceManager.GetString("UVPathName", resourceCulture);
-            }
-        }
-        
         internal static System.Drawing.Bitmap UVToolPath {
             get {
                 object obj = ResourceManager.GetObject("UVToolPath", resourceCulture);
@@ -369,6 +477,15 @@ namespace CAM.Properties {
             get {
                 object obj = ResourceManager.GetObject("UVToolPathDisabled", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Visualization.
+        /// </summary>
+        internal static string Vizualization {
+            get {
+                return ResourceManager.GetString("Vizualization", resourceCulture);
             }
         }
     }

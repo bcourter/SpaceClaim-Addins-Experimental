@@ -27,7 +27,6 @@ namespace SpaceClaim.AddIn.CAM {
 
         protected override void OnInitialize(Command command) {
             TransportControls.Initialize();
-
             SpeedSlider.Initialize();
         }
 
@@ -135,7 +134,7 @@ namespace SpaceClaim.AddIn.CAM {
             if (command != PlayCommand && command != ReverseCommand)
                 return;
 
-            if (Animation.IsAnimating && !Animation.IsPaused) {
+            if (Animation.IsAnimating /* && !Animation.IsPaused */ ) {
                 if (IsReversed) {
                     PlayCommand.Image = Resources.TransportPlay;
                     PlayCommand.Hint = Resources.AnimationToolTransportPlayHint;
@@ -235,14 +234,14 @@ namespace SpaceClaim.AddIn.CAM {
         const string commandName = "AnimationToolSpeedSlider";
         const string labelCommandName = "AnimationToolSpeedLabel";
         const int minValue = 0;
-        const int maxValue = 40;
+        const int maxValue = 60;
 
         public static void Initialize() {
             Command command = Command.Create(commandName);
             command.IsWriteBlock = false;
             command.TextChanged += (sender, e) => {
                 var c = (Command)sender;
-                Value = Math.Pow(2, double.Parse(c.Text) / 10 - 1);
+                Value = Math.Pow(2, double.Parse(c.Text) / 10 - 2);
             };
 
             Command.Create(labelCommandName);
@@ -276,11 +275,11 @@ namespace SpaceClaim.AddIn.CAM {
                     return 0;
 
                 var state = (SliderState)Command.ControlState;
-                return Math.Pow(2, (double)state.Value / 10 - 1);
+                return Math.Pow(2, (double)state.Value / 10 - 2);
             }
             set {
                 var state = (SliderState)Command.ControlState;
-                int v = (int)Math.Round((Math.Log(value) / Math.Log(2) + 1) * 10);
+                int v = (int)Math.Round((Math.Log(value) / Math.Log(2) + 2) * 10);
                 Command.ControlState = SliderState.Create(v, minValue, maxValue);
                 LabelCommand.Text = string.Format(Resources.AnimationToolSpeedLabel, value);
             }
@@ -324,10 +323,14 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         protected override void OnEnable(bool enable) {
-            if (enable)
+            if (enable) {
                 Window.SelectionChanged += Window_SelectionChanged;
-            else
+                toolPathObj.Changed += Window_SelectionChanged;
+            }
+            else {
                 Window.SelectionChanged -= Window_SelectionChanged;
+                toolPathObj.Changed -= Window_SelectionChanged;
+            }
         }
 
         void Window_SelectionChanged(object sender, EventArgs e) {

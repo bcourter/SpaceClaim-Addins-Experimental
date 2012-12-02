@@ -27,13 +27,12 @@ namespace SpaceClaim.AddIn.CAM {
     }
 
     public class Operation : Instruction {
-        List<Instruction> Instructions { get; set; }
+        IList<Instruction> Instructions { get; set; }
 
-        public Operation(IEnumerable<Instruction> instructions) {
-            Instructions = instructions.ToList();
+        public Operation(IList<Instruction> instructions) {
+            Instructions = instructions;
         }
     }
-
 
     public struct ToolEvaluation {
         public Point CenterPoint { get; private set; }

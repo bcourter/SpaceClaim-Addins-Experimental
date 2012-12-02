@@ -38,7 +38,7 @@
     <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>..\..\..\..\..\..\ProgramData\SpaceClaim\AddIns\SpaceClaim-AddIns\</OutputPath>
     <BaseAddress>285212672</BaseAddress>
     <ConfigurationOverrideFile />
     <DefineConstants>DEBUG;TRACE</DefineConstants>

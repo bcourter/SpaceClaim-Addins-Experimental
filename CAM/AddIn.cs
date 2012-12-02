@@ -18,40 +18,42 @@ using Color = System.Drawing.Color;
 using Application = SpaceClaim.Api.V10.Application;
 
 namespace SpaceClaim.AddIn.CAM {
-	public class AddIn : SpaceClaim.Api.V10.Extensibility.AddIn, IExtensibility, IRibbonExtensibility, ICommandExtensibility {
+    public class AddIn : SpaceClaim.Api.V10.Extensibility.AddIn, IExtensibility, IRibbonExtensibility, ICommandExtensibility {
 
-		#region IExtensibility Members
+        #region IExtensibility Members
 
-		public bool Connect() {
-			return true;
-		}
+        public bool Connect() {
+            return true;
+        }
 
-		public void Disconnect() {
-		}
+        public void Disconnect() {
+        }
 
-		#endregion
+        #endregion
 
-		#region IRibbonExtensibility Members
+        #region IRibbonExtensibility Members
 
-		public string GetCustomUI() {
-			return ribbonRoot.GetUI();
-		}
+        public string GetCustomUI() {
+            return ribbonRoot.GetUI();
+        }
 
-		#endregion
+        #endregion
 
-		#region ICommandExtensibility Members
+        #region ICommandExtensibility Members
 
-		RibbonRoot ribbonRoot = new RibbonRoot();
-		public void Initialize() {
-			var tab = new RibbonTabCapsule("CAM", Resources.TabText, ribbonRoot);
-			RibbonGroupCapsule group;
+        RibbonRoot ribbonRoot = new RibbonRoot();
+        public void Initialize() {
+            var tab = new RibbonTabCapsule("CAM", Resources.TabText, ribbonRoot);
+            RibbonGroupCapsule group;
 
-			group = new RibbonGroupCapsule("ToolPath", Resources.ToolPathGroupText, tab, RibbonCollectionCapsule.LayoutOrientation.horizontal);
+            group = new RibbonGroupCapsule("ToolPath", Resources.ToolPathGroupText, tab, RibbonCollectionCapsule.LayoutOrientation.horizontal);
             new FaceToolPathToolButtonCapsule(group, RibbonButtonCapsule.ButtonSize.large);
             new AnimationToolButtonCapsule(group, RibbonButtonCapsule.ButtonSize.large);
 
-		}
+            foreach (PropertyDisplay property in ToolPathObject.Properties)
+                Application.AddPropertyDisplay(property);
+        }
 
-		#endregion
-	}
+        #endregion
+    }
 }

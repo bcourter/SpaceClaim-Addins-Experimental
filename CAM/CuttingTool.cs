@@ -22,11 +22,11 @@ using SpaceClaim.AddInLibrary;
 namespace SpaceClaim.AddIn.CAM {
     public abstract class CuttingTool {
         public double Radius { get; set; }
-        public double CutingHeight { get; private set; }
+        public double CuttingHeight { get; set; }
 
         public CuttingTool(double radius, double height) {
             Radius = radius;
-            CutingHeight = height;
+            CuttingHeight = height;
         }
 
         public MeshPrimitive GetPrimitive() {
@@ -37,7 +37,9 @@ namespace SpaceClaim.AddIn.CAM {
             CurveSegment[] curveSegments = GetProfile().ToArray();
             foreach (CurveSegment curveSegement in curveSegments) {
                 if (curveSegement.Geometry is Circle) {
-                    for (double t = curveSegement.Bounds.Start; t < curveSegement.Bounds.End; t += Const.Tau / revolveSteps) {
+                    int steps = (int)(curveSegement.Bounds.Span / Const.Tau * (revolveSteps + 1));
+                    for (int i = 0; i < steps; i++) {
+                        double t = curveSegement.Bounds.Start + curveSegement.Bounds.Span * i / steps;
                         var eval = curveSegement.Geometry.Evaluate(t);
                         profileFacetVertices.Add(new FacetVertex(
                             eval.Point,
@@ -49,9 +51,13 @@ namespace SpaceClaim.AddIn.CAM {
 
                 if (curveSegement.Geometry is Line) {
                     profileFacetVertices.Add(new FacetVertex(
-                        curveSegement.EndPoint,
+                        curveSegement.StartPoint,
                         -Direction.Cross(((Line)curveSegement.Geometry).Direction, perpendicular)
                     ));
+                    profileFacetVertices.Add(new FacetVertex(
+                       curveSegement.EndPoint,
+                       -Direction.Cross(((Line)curveSegement.Geometry).Direction, perpendicular)
+                   ));
                     continue;
                 }
 
@@ -71,10 +77,13 @@ namespace SpaceClaim.AddIn.CAM {
             }
 
             var facets = new List<Facet>();
-            for (int i = 0; i < revolveSteps; i++) {
-                for (int j = 0; j < count - 1; j++) {
+            for (int j = 0; j < count - 1; j++) {
+                int jj = j + 1;
+                if (facetVertices[j].Position == facetVertices[jj].Position)
+                    continue;
+                
+                for (int i = 0; i < revolveSteps; i++) {
                     int ii = (i + 1) % revolveSteps;
-                    int jj = j + 1;
 
                     facets.Add(new Facet(
                         i * count + j,
@@ -107,7 +116,7 @@ namespace SpaceClaim.AddIn.CAM {
 
         public override IEnumerable<CurveSegment> GetProfile() {
             Point center = Point.Origin + Direction.DirZ * Radius;
-            Point top = Point.Origin + Direction.DirZ * CutingHeight;
+            Point top = Point.Origin + Direction.DirZ * CuttingHeight;
 
             var ballArc = CurveSegment.Create(Circle.Create(Frame.Create(center, Direction.DirX, Direction.DirZ), Radius), Interval.Create((double)3 / 4 * Const.Tau, Const.Tau));
             var sideLine = CurveSegment.Create(center + Direction.DirX * Radius, top + Direction.DirX * Radius);
