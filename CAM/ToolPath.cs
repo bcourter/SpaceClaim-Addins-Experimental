@@ -6,20 +6,65 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Threading;
+//using System.Threading;
 using System.Linq;
-using System.Windows.Forms;
+//using System.Windows.Forms;
+using System.IO;
+using System.Xml;
+using System.Xml.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
+
 //using SpaceClaim.Api.V10;
 using SpaceClaim.Api.V10.Display;
-using CAM.Properties;
 //using SpaceClaim.Api.V10.Extensibility;
 using SpaceClaim.Api.V10.Geometry;
 using SpaceClaim.Api.V10.Modeler;
 using Point = SpaceClaim.Api.V10.Geometry.Point;
 using ScreenPoint = System.Drawing.Point;
+
 using SpaceClaim.AddInLibrary;
+using CAM.Properties;
 
 namespace SpaceClaim.AddIn.CAM {
+    [Serializable()]
+    public abstract class Instruction {
+        XmlSerializer serializer;
+
+        public Instruction() {
+        }
+
+        public override string ToString() {
+            using (var stringWriter = new StringWriter()) {
+                var settings = new XmlWriterSettings {
+                    OmitXmlDeclaration = true
+                };
+
+                using (XmlWriter xmlWriter = XmlWriter.Create(stringWriter, settings)) {
+                    var namespaces = new XmlSerializerNamespaces(new[] { XmlQualifiedName.Empty }); // omit namespaces from root node
+                    serializer.Serialize(xmlWriter, this, namespaces);
+                }
+                return stringWriter.ToString();
+            }
+        }
+
+        //public virtual static Instruction FromString(string text) {
+        //    if (string.IsNullOrEmpty(text))
+        //        return null;
+        //    using (var reader = new StringReader(text))
+        //        return (Instruction)serializer.Deserialize(reader);
+        //}
+    }
+
+    [Serializable()]
+    public class Operation : Instruction {
+        IList<Instruction> Instructions { get; set; }
+
+        public Operation(IList<Instruction> instructions) {
+            Instructions = instructions;
+        }
+    }
+
+        [Serializable()]
     public abstract class ToolPath : Instruction {
         bool IsReversed { get; set; }
         public CuttingTool CuttingTool { get; set; }
@@ -35,7 +80,8 @@ namespace SpaceClaim.AddIn.CAM {
             IsReversed = false;
         }
 
-        public abstract IList<CutterLocation> GetCutterLocations();
+        public abstract bool TryGetCutterLocations(out IList<CutterLocation> locations);
+        protected abstract IList<CutterLocation> GetCutterLocations();
 
         public Point RestPoint(Point point) {
             return Point.Create(point.X, point.Y, CuttingParameters.RestZ + CuttingTool.Radius);
@@ -66,6 +112,7 @@ namespace SpaceClaim.AddIn.CAM {
         }
     }
 
+        [Serializable()]
     public abstract class FaceToolPath : ToolPath {
         protected Face face;
 
@@ -77,45 +124,60 @@ namespace SpaceClaim.AddIn.CAM {
         protected double endV;
 
         protected bool normalFlip;
+        protected double maxLength = 0;
 
         protected FaceToolPath(Face face, CuttingTool tool, CuttingParameters parameters)
             : base(tool, parameters) {
-            this.face = face;
+            Debug.Assert(tool != null);
+            Debug.Assert(parameters != null);
 
-            boxUV = face.BoxUV;
-            surface = face.Geometry;
-            startU = boxUV.RangeU.Start;
-            endU = boxUV.RangeU.End;
-            startV = boxUV.RangeV.Start;
-            endV = boxUV.RangeV.End;
-
-            SurfaceEvaluation surfEval = face.Geometry.Evaluate(PointUV.Create((startU + endU) / 2, (startV + endV) / 2));
-            Double sign = Vector.Dot(surfEval.Normal.UnitVector, Csys.DirZ.UnitVector);
-            normalFlip = sign < 0;
+            Face = face;
         }
 
-        public Face Face { get { return face; } }
-    }
-
-    public class UVFacingToolPath : FaceToolPath {
-        double maxLength = 0;
-        const int testSteps = 32;
-
-        public UVFacingToolPath(Face face, CuttingTool tool, CuttingParameters parameters)
-            : base(face, tool, parameters) {
-
-            for (int i = 0; i < testSteps; i++) {
-                double u = (double)i / testSteps * boxUV.RangeU.Span;
-                maxLength = Math.Max(maxLength, surface.GetLength(
-                    PointUV.Create(u, startV),
-                    PointUV.Create(u, endV)
-                ));
+        public override bool TryGetCutterLocations(out IList<CutterLocation> locations) {
+            if (face == null) {
+                locations = null;
+                return false;
             }
 
-            SurfaceEvaluation surfEval = surface.Evaluate(PointUV.Create((startU + endU) / 2, (startV + endV) / 2));
-            Double sign = Vector.Dot(surfEval.Normal.UnitVector, Csys.DirZ.UnitVector);
+            locations = GetCutterLocations();
+            return true;
+        }
 
-            normalFlip = sign < 0;
+        public virtual Face Face {
+            get { return face; }
+            set {
+                face = value;
+                if (face != null) {
+                    boxUV = face.BoxUV;
+                    surface = face.Geometry;
+                    startU = boxUV.RangeU.Start;
+                    endU = boxUV.RangeU.End;
+                    startV = boxUV.RangeV.Start;
+                    endV = boxUV.RangeV.End;
+
+                    const int testSteps = 32;
+                    for (int i = 0; i < testSteps; i++) {
+                        double u = (double)i / testSteps * boxUV.RangeU.Span;
+                        maxLength = Math.Max(maxLength, surface.GetLength(
+                            PointUV.Create(u, startV),
+                            PointUV.Create(u, endV)
+                        ));
+                    }
+
+                    SurfaceEvaluation surfEval = surface.Evaluate(PointUV.Create((startU + endU) / 2, (startV + endV) / 2));
+                    Double sign = Vector.Dot(surfEval.Normal.UnitVector, Csys.DirZ.UnitVector);
+
+                    normalFlip = sign < 0;
+                }
+            }
+        }
+    }
+
+    [Serializable()]
+    public class UVFacingToolPath : FaceToolPath {
+        public UVFacingToolPath(Face face, CuttingTool tool, CuttingParameters parameters)
+            : base(face, tool, parameters) {
         }
 
         public ToolEvaluation Evaluate(PointUV pointUV) {
@@ -192,7 +254,7 @@ namespace SpaceClaim.AddIn.CAM {
             return positions;
         }
 
-        public override IList<CutterLocation> GetCutterLocations() {
+        protected override IList<CutterLocation> GetCutterLocations() {
             var CutterLocations = new List<CutterLocation>();
             Vector tip = -Csys.DirZ * CuttingTool.Radius;
             foreach (IList<Point> points in GetChains()) {
@@ -210,19 +272,15 @@ namespace SpaceClaim.AddIn.CAM {
             }
         }
     }
-
+  
+    [Serializable()]
     public class SpiralFacingToolPath : FaceToolPath {
         Plane plane;
         ITrimmedCurve[] curves;
 
         public SpiralFacingToolPath(Face face, CuttingTool tool, CuttingParameters parameters)
             : base(face, tool, parameters) {
-            plane = face.Geometry as Plane;
-            if (plane == null)
-                throw new NotImplementedException();
 
-            Debug.Assert(face.Loops.Where(l => l.IsOuter).Count() == 1);
-            curves = face.Loops.Where(l => l.IsOuter).First().Edges.ToArray();
         }
 
 #if false
@@ -247,11 +305,30 @@ namespace SpaceClaim.AddIn.CAM {
         }
 #endif
 
-        public override IList<CutterLocation> GetCutterLocations() {
+        protected override IList<CutterLocation> GetCutterLocations() {
             SpiralStrategy strategy = new SpiralStrategy(plane, curves, CuttingTool.Radius, this);
             return strategy.GetSpiralCuttingLocations();
         }
+
+        public override Face Face {
+            get { return face; }
+            set {
+                base.Face = value;
+                if (face == null)
+                    return;
+
+                plane = face.Geometry as Plane;
+                if (plane == null)
+                    throw new NotImplementedException();
+
+                Debug.Assert(face.Loops.Where(l => l.IsOuter).Count() == 1);
+                curves = face.Loops.Where(l => l.IsOuter).First().Edges.ToArray();
+
+            }
+        }
     }
+
+
 
     public class SpiralStrategy {
         Plane plane;
@@ -363,5 +440,6 @@ namespace SpaceClaim.AddIn.CAM {
                 OrderedCurves = orderedCurves;
             }
         }
+
     }
 }

@@ -133,10 +133,10 @@
     <value>Step</value>
   </data>
   <data name="FaceToolPathToolButtonHint" xml:space="preserve">
-    <value>Create and edit UV tool paths.</value>
+    <value>Create and edit face machining tool paths.</value>
   </data>
   <data name="FaceToolPathToolButtonText" xml:space="preserve">
-    <value>UV</value>
+    <value>Face</value>
   </data>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
   <data name="ToolPath32" type="System.Resources.ResXFileRef, System.Windows.Forms">
@@ -264,5 +264,8 @@
   </data>
   <data name="Vizualization" xml:space="preserve">
     <value>Visualization</value>
+  </data>
+  <data name="FaceToolPath" xml:space="preserve">
+    <value>Face Tool Path</value>
   </data>
 </root>

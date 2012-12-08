@@ -50,7 +50,7 @@ namespace SpaceClaim.AddIn.CAM {
             new FaceToolPathToolButtonCapsule(group, RibbonButtonCapsule.ButtonSize.large);
             new AnimationToolButtonCapsule(group, RibbonButtonCapsule.ButtonSize.large);
 
-            foreach (PropertyDisplay property in ToolPathObject.Properties)
+            foreach (PropertyDisplay property in FaceToolPathObject.Properties)
                 Application.AddPropertyDisplay(property);
         }
 

@@ -20,20 +20,6 @@ using ScreenPoint = System.Drawing.Point;
 using SpaceClaim.AddInLibrary;
 
 namespace SpaceClaim.AddIn.CAM {
-    public abstract class Instruction {
-        public Instruction() {
-
-        }
-    }
-
-    public class Operation : Instruction {
-        IList<Instruction> Instructions { get; set; }
-
-        public Operation(IList<Instruction> instructions) {
-            Instructions = instructions;
-        }
-    }
-
     public struct ToolEvaluation {
         public Point CenterPoint { get; private set; }
         public Point SurfacePoint { get; private set; }

@@ -32,6 +32,7 @@ namespace SpaceClaim.AddIn.CAM {
 
         protected override void OnUpdate(Command command) {
             Window window = Window.ActiveWindow;
+            command.IsEnabled = true;
             command.IsChecked = window != null && window.ActiveTool is AnimationTool;
         }
 
@@ -129,7 +130,7 @@ namespace SpaceClaim.AddIn.CAM {
 
         static void Updating(object sender, EventArgs e) {
             var command = (Command)sender;
-            command.IsEnabled = AnimationTool != null && IsEnabled && (Animation.IsAnimating || ToolPathObject.SelectedToolPath != null);
+            command.IsEnabled = AnimationTool != null && IsEnabled && (Animation.IsAnimating || FaceToolPathObject.SelectedToolPath != null);
 
             if (command != PlayCommand && command != ReverseCommand)
                 return;
@@ -292,7 +293,7 @@ namespace SpaceClaim.AddIn.CAM {
         double totalTime = 0;
         double[] timeToLocation;
 
-        ToolPathObject toolPathObj;
+        FaceToolPathObject toolPathObj;
         ToolPath toolPath;
 
         int index;
@@ -315,8 +316,8 @@ namespace SpaceClaim.AddIn.CAM {
             if (docObject as ICustomObject == null)
                 return null;
 
-            ToolPathObject toolPathObj = ToolPathObject.GetWrapper((docObject as ICustomObject).Master);
-            if (toolPathObj != null)
+            FaceToolPathObject toolPathObj = FaceToolPathObject.GetWrapper((docObject as ICustomObject).Master);
+            if (toolPathObj != null && toolPathObj.IDesFace != null)
                 return docObject;
 
             return null;
@@ -325,11 +326,13 @@ namespace SpaceClaim.AddIn.CAM {
         protected override void OnEnable(bool enable) {
             if (enable) {
                 Window.SelectionChanged += Window_SelectionChanged;
-                toolPathObj.Changed += Window_SelectionChanged;
+                if (toolPathObj != null)
+                    toolPathObj.Changed += Window_SelectionChanged;
             }
             else {
                 Window.SelectionChanged -= Window_SelectionChanged;
-                toolPathObj.Changed -= Window_SelectionChanged;
+                if (toolPathObj != null)
+                    toolPathObj.Changed -= Window_SelectionChanged;
             }
         }
 
@@ -346,8 +349,8 @@ namespace SpaceClaim.AddIn.CAM {
             if (InteractionContext.SingleSelection as ICustomObject == null)
                 return;
 
-            toolPathObj = ToolPathObject.GetWrapper((InteractionContext.SingleSelection as ICustomObject).Master);
-            if (toolPathObj == null) {
+            toolPathObj = FaceToolPathObject.GetWrapper((InteractionContext.SingleSelection as ICustomObject).Master);
+            if (toolPathObj == null || toolPathObj.IDesFace == null) {
                 TransportControls.IsEnabled = false;
                 return;
             }

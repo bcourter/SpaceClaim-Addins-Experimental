@@ -264,7 +264,16 @@ namespace CAM.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Create and edit UV tool paths..
+        ///   Looks up a localized string similar to Face Tool Path.
+        /// </summary>
+        internal static string FaceToolPath {
+            get {
+                return ResourceManager.GetString("FaceToolPath", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Create and edit face machining tool paths..
         /// </summary>
         internal static string FaceToolPathToolButtonHint {
             get {
@@ -273,7 +282,7 @@ namespace CAM.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to UV.
+        ///   Looks up a localized string similar to Face.
         /// </summary>
         internal static string FaceToolPathToolButtonText {
             get {

@@ -184,7 +184,7 @@ namespace SpaceClaim.AddIn.AETools {
             //     const double focusMaterialThickness = (0.75 - .038) * inches; // McMaster 8619K487	
             const double focusHeight = focusMaterialThickness - circuitBoardBandThickness - circuitBoardLedHeight;
 
-            const double domeMaterialThickness = 0.75; //   http://www.interstateplastics.com/Clear-Acrylic-Cast-Paper-Sheet-ACRCLCP.php?sku=ACRCLCP&vid=201211180031-7p&dim2=48&dim3=48&thickness=0.750&qty=1
+        //    const double domeMaterialThickness = 0.75; //   http://www.interstateplastics.com/Clear-Acrylic-Cast-Paper-Sheet-ACRCLCP.php?sku=ACRCLCP&vid=201211180031-7p&dim2=48&dim3=48&thickness=0.750&qty=1
             //         const double domeMaterialThickness = (double)11 / 16 - 0.049; // McMaster 8560K367	
             const double domeHeight = (double)23 / 32 * inches;
             const double domeRootThickness = (double)3 / 16 * inches; 
@@ -253,7 +253,7 @@ namespace SpaceClaim.AddIn.AETools {
             List<CurveSegment> outerEdges;
             CreateVoronoi(count, points, out cells, out vectors, out outerEdges);
 
-            int printCount = 0;
+      //      int printCount = 0;
 
             //if (printCount++ <= maxPrint * 20) {
             //    Point pA = Point.Create(edge.VVertexA.X, edge.VVertexA.Y, 0);
@@ -404,12 +404,12 @@ namespace SpaceClaim.AddIn.AETools {
 
                 foreach (Face face in newParabolas) {
                     var toolPath = new UVFacingToolPath(face, smallerBall, contouringParams);
-                    ToolPathObject.Create(desBody.Faces.Where(f => f.Shape == face).First(), toolPath, System.Drawing.Color.DarkCyan);
+                    FaceToolPathObject.Create(desBody.Faces.Where(f => f.Shape == face).First(), toolPath, System.Drawing.Color.DarkCyan);
                 }
 
               //  var bottommingToolPath = new SpiralFacingToolPath(newParabolaBottom, newParabolaBottom.Edges.Select(e => e.Faces.Where(f => f != newParabolaBottom).First()).ToArray(), smallerBall, bottommingParams);
                 var bottommingToolPath = new SpiralFacingToolPath(newParabolaBottom, smallerBall, bottommingParams);
-                ToolPathObject.Create(desBody.Faces.Where(f => f.Shape == newParabolaBottom).First(), bottommingToolPath, System.Drawing.Color.DarkOrange);
+                FaceToolPathObject.Create(desBody.Faces.Where(f => f.Shape == newParabolaBottom).First(), bottommingToolPath, System.Drawing.Color.DarkOrange);
 
                 //   Body insideTop = ArcLoft(domeHeight, cell.Center, insetBody);
                 Matrix m = Matrix.CreateTranslation(Direction.DirZ * domeRootThickness);
@@ -498,7 +498,6 @@ namespace SpaceClaim.AddIn.AETools {
             List<ITrimmedCurve> parabolaCurves = new List<ITrimmedCurve>();
             List<Body> domeBodies = new List<Body>();
             Point focus = center - Direction.DirZ * focusHeight;
-
             foreach (Fin fin in insetBody.Faces.First().Loops.First().Fins) {
                 const double loftResoluion = 0.002;
                 int loftCount = Math.Max((int)(fin.Edge.Length / loftResoluion), 2);
@@ -568,7 +567,7 @@ namespace SpaceClaim.AddIn.AETools {
 
                 double vStep = 0.125 * 0.0254;
                 int vCount = (int)Math.Max(topEdge.Length / vStep, 2);
-                int uCount = 32;
+           //     int uCount = 32;
 
                 //for (int j = 0; j < vCount; j++) {
                 //    double v = startV + (double)j / (vCount - 1) * (endV - startV);
@@ -1484,7 +1483,7 @@ namespace SpaceClaim.AddIn.AETools {
             double elasticity = 0;// 0.25;
             double elasticityZ = -0.00005;
             double uSpring = 0.0004;
-            double vSpring = 0.0003;
+         //   double vSpring = 0.0003;
             double vTangency = 0.15;
             double vSquare = 0.2;
 

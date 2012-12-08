@@ -22,13 +22,16 @@ using SpaceClaim.AddInLibrary;
 namespace SpaceClaim.AddIn.CAM {
     public delegate void ToolPathChangedEventHandler(object sender, EventArgs e);
 
-    public class ToolPathObject : CustomWrapper<ToolPathObject> {
-        readonly DesignFace desFace;
+    public class FaceToolPathObject : CustomWrapper<FaceToolPathObject> {
+        IDesignFace iDesFace;
         Color color;
-        ToolPath toolPath;
+        FaceToolPath toolPath;
         IList<CutterLocation> cutterLocations;
 
-        static List<ToolPathObject> allUVPaths = new List<ToolPathObject>();
+        static List<FaceToolPathObject> allUVPaths = new List<FaceToolPathObject>();
+        public static FaceToolPath DefaultToolPath { get; set; }
+        public static Color DefaultColor { get; set; }
+        public static int DefaultStrategy { get; set; }
 
         public static string[] ToolPathTypeNames = new[] { 
             Resources.ToolPathFaceUV,
@@ -38,97 +41,79 @@ namespace SpaceClaim.AddIn.CAM {
         public event ToolPathChangedEventHandler Changed;
 
         // creates a wrapper for an existing custom object
-        protected ToolPathObject(CustomObject subject)
+        protected FaceToolPathObject(CustomObject subject)
             : base(subject) {
             allUVPaths.Add(this);
         }
 
         // creates a new custom object and a wrapper for it
-        protected ToolPathObject(DesignFace desFace, ToolPath toolPath, Color color)
-            : base(desFace.GetAncestor<Part>()) {
-            this.desFace = desFace;
+        protected FaceToolPathObject(IDesignFace iDesFace, FaceToolPath toolPath, Color color)
+            : base(Window.ActiveWindow.Scene as Part) {
+            this.iDesFace = iDesFace;
             this.color = color;
             this.toolPath = toolPath;
 
-            desFace.KeepAlive(true);
+            if (iDesFace != null)
+                IDesFace = iDesFace;
+
             allUVPaths.Add(this);
         }
 
-        ~ToolPathObject() {
+        ~FaceToolPathObject() {
             allUVPaths.Remove(this);
         }
 
         // static Create method follows the API convention and parent should be first argument
-        public static ToolPathObject Create(DesignFace desFace, ToolPath toolPath, Color color) {
-            Debug.Assert(desFace != null);
+        public static FaceToolPathObject Create(IDesignFace desFace, FaceToolPath toolPath, Color color) {
+            Debug.Assert(desFace == null || desFace.Master.Shape == toolPath.Face);
 
-            var toolPathObj = new ToolPathObject(desFace, toolPath, color);
+            var toolPathObj = new FaceToolPathObject(desFace, toolPath, color);
             toolPathObj.Initialize();
-            toolPathObj.cutterLocations = toolPath.GetCutterLocations().ToArray();
+
+            IList<CutterLocation> cutterLocations;
+            toolPath.TryGetCutterLocations(out cutterLocations);
+            toolPathObj.cutterLocations = cutterLocations;
             return toolPathObj;
+        }
+
+        public static FaceToolPathObject Create(IDesignFace desFace) {
+            return Create(desFace, DefaultToolPath, DefaultColor);
         }
 
         public void Regenerate() {
             this.Initialize();
-            cutterLocations = toolPath.GetCutterLocations().ToArray();
-            Changed(this, new EventArgs());
+            toolPath.TryGetCutterLocations(out cutterLocations);
+
+            DefaultToolPath = ToolPath;
+            DefaultColor = Color;
+            DefaultStrategy = FaceToolPathObject.ToolPathTypeNames
+                .ToList().IndexOf(GetToolPathName());
+
+            if (Changed != null)
+                Changed(this, new EventArgs());
         }
-
-#if false
-        // if this returns true, the custom object can be used with the Move tool
-        public override bool TryGetTransformFrame(out Frame frame, out Transformations transformations) {
-            Face face = desFace.Shape;
-            var plane = face.GetGeometry<Plane>();
-            Point center = plane.ProjectPoint(face.GetBoundingBox(Matrix.Identity).Center).Point;
-            Direction dirZ = plane.Frame.DirZ;
-            if (face.IsReversed)
-                dirZ = -dirZ;
-            frame = placement * Frame.Create(center, dirZ);
-
-            // only offer transformations in the plane
-            transformations = Transformations.TranslateX | Transformations.TranslateY | Transformations.RotateZ;
-            return true;
-        }
-
-        // the Move tool uses this
-        public override void Transform(Matrix trans) {
-            Face face = desFace.Shape;
-
-            // only accept transformations in the plane
-            var plane = face.GetGeometry<Plane>();
-            if (plane.IsCoincident(trans * plane)) {
-                placement = trans * placement;
-                Commit();
-            }
-        }
-
-        // the Move tool uses this if the Ctrl key is down
-        public override SphereSet Copy() {
-            SphereSet copy = Create(desFace, offset, color, count);
-            copy.Placement = placement;
-            return copy;
-        }
-#endif
 
         protected override bool IsAlive {
             get {
-                if (desFace == null || desFace.IsDeleted)
+                if (iDesFace != null && iDesFace.IsDeleted)
                     return false;
 
                 return true;
             }
         }
 
+#if true
         public new static string DefaultDisplayName {
-            get { return "UV Tool Path"; }
+            get { return Resources.FaceToolPath; }
         }
+#endif
 
         public new static System.Drawing.Image[] ImageList {
             get { return new[] { Resources.UVToolPath, Resources.UVToolPathDisabled }; }
         }
 
         protected override ICollection<IDocObject> Determinants {
-            get { return new IDocObject[] { desFace }; }
+            get { return new IDocObject[] { iDesFace }; }
         }
 
         protected override bool Update() {
@@ -147,7 +132,10 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         void UpdateRendering(CancellationToken token) {
-            Face face = desFace.Shape;
+            if (iDesFace == null)
+                return;
+
+            Face face = iDesFace.Master.Shape;
             Graphic curveGraphic, arrowGraphic;
             cutterLocations = GetGraphics(toolPath, out curveGraphic, out arrowGraphic);
             GraphicStyle style;
@@ -157,15 +145,6 @@ namespace SpaceClaim.AddIn.CAM {
             Color prehighlightColor = Color.FromArgb(transparentColor.A, 255 - (255 - transparentColor.R) / 2, 255 - (255 - transparentColor.G) / 2, 255 - (255 - transparentColor.B) / 2);
             Color curveColor = Color.FromArgb(255, selectedColor);
             Color curvePrehighlightColor = Color.FromArgb(255, prehighlightColor);
-
-            //// nucleus
-            ////style = new GraphicStyle {
-            ////    IsPrimarySelection = false,
-            ////    IsPreselection = false,
-            ////    EnableDepthBuffer = true,
-            ////    FillColor = color  // BZC > DTR try replacing with transparentColor
-            ////};
-            ////Graphic visible = Graphic.Create(style, null, sphere);
 
             //style = new GraphicStyle {
             //    IsPrimarySelection = true,
@@ -260,7 +239,7 @@ namespace SpaceClaim.AddIn.CAM {
             throw new NotImplementedException();
         }
 
-        public static ToolPathObject SelectedToolPath {
+        public static FaceToolPathObject SelectedToolPath {
             get {
                 IDocObject docObject = Window.ActiveWindow.ActiveContext.SingleSelection;
                 if (docObject == null)
@@ -274,7 +253,22 @@ namespace SpaceClaim.AddIn.CAM {
             }
         }
 
-        public static IList<ToolPathObject> AllUVPaths {
+        public static FaceToolPathObject DefaultToolPathObject {
+            get {
+                FaceToolPath toolPath = null;
+
+                if (FaceToolPathObject.ToolPathTypeNames[DefaultStrategy] == Resources.ToolPathFaceUV)
+                    toolPath = new UVFacingToolPath(null, DefaultToolPath.CuttingTool, DefaultToolPath.CuttingParameters);
+
+                if (FaceToolPathObject.ToolPathTypeNames[DefaultStrategy] == Resources.ToolPathFaceSpiral)
+                    toolPath = new SpiralFacingToolPath(null, DefaultToolPath.CuttingTool, DefaultToolPath.CuttingParameters);
+
+                Debug.Assert(toolPath != null);
+                return FaceToolPathObject.Create(null, toolPath, DefaultColor);
+            }
+        }
+
+        public static IList<FaceToolPathObject> AllUVPaths {
             get { return allUVPaths; }
         }
 
@@ -297,11 +291,22 @@ namespace SpaceClaim.AddIn.CAM {
             }
         }
 
-        public DesignFace DesFace {
-            get { return desFace; }
+        public IDesignFace IDesFace {
+            get { return iDesFace; }
+            set {
+                iDesFace = value;
+                toolPath.Face = IDesFace.Master.Shape;
+                iDesFace.KeepAlive(true);
+
+            //    WriteBlock.ExecuteTask("Set face of tool path", () => Subject.Name = iDesFace != null ? Resources.FaceToolPath : Subject.Name = null);
+
+                Regenerate();
+                UpdateRendering(new CancellationToken());
+                Commit();
+            }
         }
 
-        public ToolPath ToolPath {
+        public FaceToolPath ToolPath {
             get { return toolPath; }
             set {
                 if (value == toolPath)
@@ -330,10 +335,10 @@ namespace SpaceClaim.AddIn.CAM {
     }
 
     public class ToolPathPropertyDisplay : SimplePropertyDisplay {
-        Func<ToolPathObject, double> getValue;
-        Action<ToolPathObject, double> setValue;
+        Func<FaceToolPathObject, double> getValue;
+        Action<FaceToolPathObject, double> setValue;
 
-        public ToolPathPropertyDisplay(string category, string name, Func<ToolPathObject, double> getValue, Action<ToolPathObject, double> setValue)
+        public ToolPathPropertyDisplay(string category, string name, Func<FaceToolPathObject, double> getValue, Action<FaceToolPathObject, double> setValue)
             : base(category, name) {
             this.getValue = getValue;
             this.setValue = setValue;
@@ -344,7 +349,7 @@ namespace SpaceClaim.AddIn.CAM {
 
             var iCustomObj = obj as ICustomObject;
             if (iCustomObj != null) {
-                var toolPathObj = ToolPathObject.GetWrapper(iCustomObj.Master);
+                var toolPathObj = FaceToolPathObject.GetWrapper(iCustomObj.Master);
                 if (toolPathObj != null) {
                     return Window.ActiveWindow.Units.Length.Format(getValue(toolPathObj));
                 }
@@ -363,7 +368,7 @@ namespace SpaceClaim.AddIn.CAM {
                 return false;
 
             var iCustomObj = (ICustomObject)obj;
-            var toolPathObj = ToolPathObject.GetWrapper(iCustomObj.Master);
+            var toolPathObj = FaceToolPathObject.GetWrapper(iCustomObj.Master);
             setValue(toolPathObj, val);
             toolPathObj.Regenerate();
             return true;
@@ -375,14 +380,14 @@ namespace SpaceClaim.AddIn.CAM {
             : base(Resources.Strategy, Resources.Strategy) {
         }
 
-        public override ICollection<string> AllowableValues { get { return ToolPathObject.ToolPathTypeNames; } }
+        public override ICollection<string> AllowableValues { get { return FaceToolPathObject.ToolPathTypeNames; } }
 
         public override string GetValue(IDocObject obj) {
             Debug.Assert(obj != null);
 
             var iCustomObj = obj as ICustomObject;
             if (iCustomObj != null) {
-                var toolPathObj = ToolPathObject.GetWrapper(iCustomObj.Master);
+                var toolPathObj = FaceToolPathObject.GetWrapper(iCustomObj.Master);
                 if (toolPathObj != null && toolPathObj.ToolPath != null) {
                     return toolPathObj.GetToolPathName();
                 }
@@ -395,7 +400,7 @@ namespace SpaceClaim.AddIn.CAM {
             Debug.Assert(!string.IsNullOrEmpty(value));
 
             var iCustomObj = (ICustomObject)obj;
-            var toolPathObj = ToolPathObject.GetWrapper(iCustomObj.Master);
+            var toolPathObj = FaceToolPathObject.GetWrapper(iCustomObj.Master);
             toolPathObj.SetToolPathByName(value);
             //           toolPathObj.Regenerate();
             return true;
@@ -403,7 +408,7 @@ namespace SpaceClaim.AddIn.CAM {
     }
 
     class ToolPathColorProperty : SimplePropertyDisplay {
-        static readonly Color[] colorList = {
+        public static readonly Color[] ColorList = {
 			Color.Gray,
 			Color.Red,
 			Color.Yellow,
@@ -417,14 +422,14 @@ namespace SpaceClaim.AddIn.CAM {
             : base(Resources.Vizualization, Resources.Color) {
         }
 
-        public override ICollection<string> AllowableValues { get { return Array.ConvertAll(colorList, c => c.Name); } }
+        public override ICollection<string> AllowableValues { get { return Array.ConvertAll(ColorList, c => c.Name); } }
 
         public override string GetValue(IDocObject obj) {
             Debug.Assert(obj != null);
 
             var iCustomObj = obj as ICustomObject;
             if (iCustomObj != null) {
-                var toolPathObj = ToolPathObject.GetWrapper(iCustomObj.Master);
+                var toolPathObj = FaceToolPathObject.GetWrapper(iCustomObj.Master);
                 if (toolPathObj != null && toolPathObj.ToolPath != null) {
                     return toolPathObj.Color.Name;
                 }
@@ -437,10 +442,10 @@ namespace SpaceClaim.AddIn.CAM {
             Debug.Assert(!string.IsNullOrEmpty(value));
 
             var iCustomObj = (ICustomObject)obj;
-            var toolPathObj = ToolPathObject.GetWrapper(iCustomObj.Master);
-            for (int i = 0; i < colorList.Length; i++) {
+            var toolPathObj = FaceToolPathObject.GetWrapper(iCustomObj.Master);
+            for (int i = 0; i < ColorList.Length; i++) {
                 if (AllowableValues.ToArray()[i] == value) {
-                    toolPathObj.Color = colorList[i];
+                    toolPathObj.Color = ColorList[i];
                     break;
                 }
             }
