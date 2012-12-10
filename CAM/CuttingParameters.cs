@@ -24,6 +24,8 @@ namespace SpaceClaim.AddIn.CAM {
         public double RestZ { get; set; }
         public double Increment { get; set; }
 
+        public CuttingParameters() { }
+
         public CuttingParameters(double stepOver, double feedRate, double restZ) {
             StepOver = stepOver;
             CutDepth = stepOver;

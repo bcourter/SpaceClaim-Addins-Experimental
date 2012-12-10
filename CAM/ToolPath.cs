@@ -12,7 +12,6 @@ using System.Linq;
 using System.IO;
 using System.Xml;
 using System.Xml.Serialization;
-using System.Runtime.Serialization.Formatters.Binary;
 
 //using SpaceClaim.Api.V10;
 using SpaceClaim.Api.V10.Display;
@@ -26,12 +25,13 @@ using SpaceClaim.AddInLibrary;
 using CAM.Properties;
 
 namespace SpaceClaim.AddIn.CAM {
-    [Serializable()]
+    [XmlInclude(typeof(Operation))]
+    [XmlInclude(typeof(ToolPath))]
+    [XmlInclude(typeof(FaceToolPath))]
     public abstract class Instruction {
-        XmlSerializer serializer;
+     //  protected static XmlSerializer serializer = new XmlSerializer(typeof(Instruction));
 
-        public Instruction() {
-        }
+        protected Instruction() { }
 
         public override string ToString() {
             using (var stringWriter = new StringWriter()) {
@@ -40,6 +40,7 @@ namespace SpaceClaim.AddIn.CAM {
                 };
 
                 using (XmlWriter xmlWriter = XmlWriter.Create(stringWriter, settings)) {
+                    XmlSerializer serializer = new XmlSerializer(this.GetType()); 
                     var namespaces = new XmlSerializerNamespaces(new[] { XmlQualifiedName.Empty }); // omit namespaces from root node
                     serializer.Serialize(xmlWriter, this, namespaces);
                 }
@@ -47,29 +48,33 @@ namespace SpaceClaim.AddIn.CAM {
             }
         }
 
-        //public virtual static Instruction FromString(string text) {
-        //    if (string.IsNullOrEmpty(text))
-        //        return null;
-        //    using (var reader = new StringReader(text))
-        //        return (Instruction)serializer.Deserialize(reader);
-        //}
+        public static T FromString<T>(string text) where T: Instruction{
+            if (string.IsNullOrEmpty(text))
+                return null;
+            using (var reader = new StringReader(text)) {
+                XmlSerializer serializer = new XmlSerializer(typeof(T));
+                return (T)serializer.Deserialize(reader);
+            }
+        }
     }
 
     [Serializable()]
     public class Operation : Instruction {
-        IList<Instruction> Instructions { get; set; }
+        List<Instruction> Instructions { get; set; }  // can't be IList due to serialization
+
+        protected Operation() : base() { }
 
         public Operation(IList<Instruction> instructions) {
-            Instructions = instructions;
+            Instructions = instructions.ToList();
         }
     }
 
-        [Serializable()]
     public abstract class ToolPath : Instruction {
-        bool IsReversed { get; set; }
         public CuttingTool CuttingTool { get; set; }
         public CuttingParameters CuttingParameters { get; set; }
-        public Frame Csys = Frame.World;
+        public Frame Csys { get; set; }
+
+        protected ToolPath() : base() { }
 
         protected ToolPath(CuttingTool tool, CuttingParameters parameters) {
             Debug.Assert(tool != null);
@@ -77,7 +82,7 @@ namespace SpaceClaim.AddIn.CAM {
 
             CuttingTool = tool;
             CuttingParameters = parameters;
-            IsReversed = false;
+            Csys = Frame.World;
         }
 
         public abstract bool TryGetCutterLocations(out IList<CutterLocation> locations);
@@ -112,26 +117,32 @@ namespace SpaceClaim.AddIn.CAM {
         }
     }
 
-        [Serializable()]
-    public abstract class FaceToolPath : ToolPath {
-        protected Face face;
+    public class FaceToolPath : ToolPath {
+        [NonSerializedAttribute]
+        private Face face;
 
-        protected BoxUV boxUV;
-        protected Surface surface;
-        protected double startU;
-        protected double endU;
-        protected double startV;
-        protected double endV;
+        public StrategyType Strategy { get; set; }
 
-        protected bool normalFlip;
-        protected double maxLength = 0;
+        private BoxUV boxUV;
+        private Surface surface;
 
-        protected FaceToolPath(Face face, CuttingTool tool, CuttingParameters parameters)
+        public double StartU { get; set; }
+        public double EndU { get; set; }
+        public double StartV { get; set; }
+        public double EndV { get; set; }
+
+        private double maxLength = 0;
+        private bool isNormalFlipped;
+
+        public FaceToolPath() : base() { }
+
+        public FaceToolPath(Face face, CuttingTool tool, CuttingParameters parameters, StrategyType strategy)
             : base(tool, parameters) {
             Debug.Assert(tool != null);
             Debug.Assert(parameters != null);
 
             Face = face;
+            Strategy = strategy;
         }
 
         public override bool TryGetCutterLocations(out IList<CutterLocation> locations) {
@@ -144,56 +155,75 @@ namespace SpaceClaim.AddIn.CAM {
             return true;
         }
 
-        public virtual Face Face {
+        protected override IList<CutterLocation> GetCutterLocations() {
+            switch (Strategy) {
+                case StrategyType.UV:
+                    return UVFacingToolPathFactory.GetCutterLocations(this);
+
+                case StrategyType.Spiral:
+                    return SpiralFacingToolPathFactory.GetCutterLocations(this);
+
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
+        public bool IsNormalFlipped { get { return isNormalFlipped; } }
+
+        public Surface Surface { get { return surface; } }
+        public double MaxLength { get { return maxLength; } }
+
+        [XmlIgnoreAttribute]
+        public Face Face {
             get { return face; }
             set {
                 face = value;
                 if (face != null) {
                     boxUV = face.BoxUV;
                     surface = face.Geometry;
-                    startU = boxUV.RangeU.Start;
-                    endU = boxUV.RangeU.End;
-                    startV = boxUV.RangeV.Start;
-                    endV = boxUV.RangeV.End;
+                    StartU = boxUV.RangeU.Start;
+                    EndU = boxUV.RangeU.End;
+                    StartV = boxUV.RangeV.Start;
+                    EndV = boxUV.RangeV.End;
 
                     const int testSteps = 32;
                     for (int i = 0; i < testSteps; i++) {
                         double u = (double)i / testSteps * boxUV.RangeU.Span;
                         maxLength = Math.Max(maxLength, surface.GetLength(
-                            PointUV.Create(u, startV),
-                            PointUV.Create(u, endV)
+                            PointUV.Create(u, StartV),
+                            PointUV.Create(u, EndV)
                         ));
                     }
 
-                    SurfaceEvaluation surfEval = surface.Evaluate(PointUV.Create((startU + endU) / 2, (startV + endV) / 2));
+                    SurfaceEvaluation surfEval = surface.Evaluate(PointUV.Create((StartU + EndU) / 2, (StartV + EndV) / 2));
                     Double sign = Vector.Dot(surfEval.Normal.UnitVector, Csys.DirZ.UnitVector);
 
-                    normalFlip = sign < 0;
+                    isNormalFlipped = sign < 0;
                 }
             }
         }
+
+        public enum StrategyType {
+            UV = 0,
+            Spiral = 1
+        }
     }
 
-    [Serializable()]
-    public class UVFacingToolPath : FaceToolPath {
-        public UVFacingToolPath(Face face, CuttingTool tool, CuttingParameters parameters)
-            : base(face, tool, parameters) {
-        }
-
-        public ToolEvaluation Evaluate(PointUV pointUV) {
-            SurfaceEvaluation eval = surface.Evaluate(pointUV);
+    public static class UVFacingToolPathFactory {
+        private static ToolEvaluation Evaluate(PointUV pointUV, FaceToolPath toolPath) {
+            SurfaceEvaluation eval = toolPath.Surface.Evaluate(pointUV);
             Point surfacePoint = eval.Point;
-            Direction surfaceNormal = normalFlip ? -eval.Normal : eval.Normal;
-            return new ToolEvaluation(surfacePoint + CuttingTool.Radius * surfaceNormal, surfacePoint, surfaceNormal);
+            Direction surfaceNormal = toolPath.IsNormalFlipped ? -eval.Normal : eval.Normal;
+            return new ToolEvaluation(surfacePoint + toolPath.CuttingTool.Radius * surfaceNormal, surfacePoint, surfaceNormal);
         }
 
-        public Point[] GetChainAtV(double v, Func<PointUV, bool> condition) {
+        private static Point[] GetChainAtVWhere(double v, Func<PointUV, bool> condition, FaceToolPath toolPath) {
             List<Point> points = new List<Point>();
 
-            double u = startU;
-            while (u <= endU) {
+            double u = toolPath.StartU;
+            while (u <= toolPath.EndU) {
                 PointUV pointUV;
-                if (!surface.TryOffsetParam(PointUV.Create(u, v), DirectionUV.DirU, CuttingParameters.Increment, out pointUV))
+                if (!toolPath.Surface.TryOffsetParam(PointUV.Create(u, v), DirectionUV.DirU, toolPath.CuttingParameters.Increment, out pointUV))
                     break;
 
                 u = pointUV.U;
@@ -201,50 +231,46 @@ namespace SpaceClaim.AddIn.CAM {
                 if (!condition(pointUV))
                     continue;
 
-                ToolEvaluation eval = Evaluate(pointUV);
+                ToolEvaluation eval = Evaluate(pointUV, toolPath);
                 points.Add(eval.CenterPoint);
             }
 
             return points.ToArray();
         }
 
-        public Point[] GetChainAtV(double v) {
-            //       return GetChainAtV(v, p => face.ContainsParam(p));
-            return GetChainAtV(v, face.Body);
-        }
-
-        public Point[] GetChainAtV(double v, Body excludeBody) {
+        private static Point[] GetChainAtV(double v, FaceToolPath toolPath) {
 #if false
             return GetChainAtV(v, p => true);
 #else
-            return GetChainAtV(v, p => {
-                if (!face.ContainsParam(p))
+            return GetChainAtVWhere(v, p => {
+                if (!toolPath.Face.ContainsParam(p))
                     return false;
 
-                ToolEvaluation eval = Evaluate(p);
-                Face[] adjacentFaces = face.Edges
+                ToolEvaluation eval = Evaluate(p, toolPath);
+                Face[] adjacentFaces = toolPath.Face.Edges
                     .Where(e => e.Faces.Count == 2 && e.GetAngle() < 0)  // TBD handle surface bodies correctly
-                    .Select(e => face.GetAdjacentFace(e))
+                    .Select(e => toolPath.Face.GetAdjacentFace(e))
                     .Where(f => f != null)
                     .ToArray();
 
                 foreach (Face adjacentFace in adjacentFaces) {
-                    if ((eval.CenterPoint - adjacentFace.Geometry.ProjectPoint(eval.CenterPoint).Point).MagnitudeSquared() < Math.Pow(CuttingTool.Radius, 2))
+                    if ((eval.CenterPoint - adjacentFace.Geometry.ProjectPoint(eval.CenterPoint).Point).MagnitudeSquared() < Math.Pow(toolPath.CuttingTool.Radius, 2))
                         return false;
                 }
 
                 return true;
-            });
+            }, toolPath);
 #endif
         }
 
-        public IList<IList<Point>> GetChains() {
+        private static IList<IList<Point>> GetChains(FaceToolPath toolPath) {
             var positions = new List<IList<Point>>();
 
             var points = new List<Point>();
-            for (int i = 0; i < Count; i++) {
-                double v = Count < 2 ? (startV + endV) / 2 : startV + (double)i / (Count - 1) * (endV - startV);
-                points = GetChainAtV(v).ToList();
+            int count = Count(toolPath);
+            for (int i = 0; i < count; i++) {
+                double v = count < 2 ? (toolPath.StartV + toolPath.EndV) / 2 : toolPath.StartV + (double)i / (count - 1) * (toolPath.EndV - toolPath.StartV);
+                points = GetChainAtV(v, toolPath).ToList();
                 if (points.Count < 1)
                     continue;
 
@@ -254,33 +280,34 @@ namespace SpaceClaim.AddIn.CAM {
             return positions;
         }
 
-        protected override IList<CutterLocation> GetCutterLocations() {
+        public static IList<CutterLocation> GetCutterLocations(FaceToolPath toolPath) {
             var CutterLocations = new List<CutterLocation>();
-            Vector tip = -Csys.DirZ * CuttingTool.Radius;
-            foreach (IList<Point> points in GetChains()) {
-                CutterLocations.Add(new CutterLocation(RestPoint(points[0]), tip, true));
+            Vector tip = -toolPath.Csys.DirZ * toolPath.CuttingTool.Radius;
+            foreach (IList<Point> points in GetChains(toolPath)) {
+                CutterLocations.Add(new CutterLocation(toolPath.RestPoint(points[0]), tip, true));
                 CutterLocations.AddRange(points.Select(p => new CutterLocation(p, tip, false)));
-                CutterLocations.Add(new CutterLocation(RestPoint(points[points.Count - 1]), tip, true));
+                CutterLocations.Add(new CutterLocation(toolPath.RestPoint(points[points.Count - 1]), tip, true));
             }
 
             return CutterLocations;
         }
 
-        public int Count {
-            get {
-                return (int)Math.Ceiling(maxLength / CuttingParameters.StepOver);
-            }
+        private static int Count(FaceToolPath toolPath) {
+            return (int)Math.Ceiling(toolPath.MaxLength / toolPath.CuttingParameters.StepOver);
         }
     }
-  
-    [Serializable()]
-    public class SpiralFacingToolPath : FaceToolPath {
-        Plane plane;
-        ITrimmedCurve[] curves;
 
-        public SpiralFacingToolPath(Face face, CuttingTool tool, CuttingParameters parameters)
-            : base(face, tool, parameters) {
+    public static class SpiralFacingToolPathFactory  {
+        public static IList<CutterLocation> GetCutterLocations(FaceToolPath toolPath) {
+            Debug.Assert(toolPath.Face.Loops.Where(l => l.IsOuter).Count() == 1);
+            ITrimmedCurve[] curves = toolPath.Face.Loops.Where(l => l.IsOuter).First().Edges.ToArray();
 
+            Plane plane = toolPath.Face.Geometry as Plane;
+            if (plane == null)
+                throw new NotImplementedException();
+
+            SpiralStrategy strategy = new SpiralStrategy(plane, curves, toolPath.CuttingTool.Radius, toolPath);
+            return strategy.GetSpiralCuttingLocations();
         }
 
 #if false
@@ -304,30 +331,7 @@ namespace SpaceClaim.AddIn.CAM {
             initialOffset = 0;
         }
 #endif
-
-        protected override IList<CutterLocation> GetCutterLocations() {
-            SpiralStrategy strategy = new SpiralStrategy(plane, curves, CuttingTool.Radius, this);
-            return strategy.GetSpiralCuttingLocations();
-        }
-
-        public override Face Face {
-            get { return face; }
-            set {
-                base.Face = value;
-                if (face == null)
-                    return;
-
-                plane = face.Geometry as Plane;
-                if (plane == null)
-                    throw new NotImplementedException();
-
-                Debug.Assert(face.Loops.Where(l => l.IsOuter).Count() == 1);
-                curves = face.Loops.Where(l => l.IsOuter).First().Edges.ToArray();
-
-            }
-        }
     }
-
 
 
     public class SpiralStrategy {

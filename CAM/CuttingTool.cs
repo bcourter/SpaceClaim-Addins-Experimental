@@ -9,6 +9,7 @@ using System.Drawing;
 using System.Threading;
 using System.Linq;
 using System.Windows.Forms;
+using System.Xml.Serialization;
 using SpaceClaim.Api.V10;
 using SpaceClaim.Api.V10.Display;
 using CAM.Properties;
@@ -20,9 +21,12 @@ using ScreenPoint = System.Drawing.Point;
 using SpaceClaim.AddInLibrary;
 
 namespace SpaceClaim.AddIn.CAM {
+    [XmlInclude(typeof(BallMill))]
     public abstract class CuttingTool {
         public double Radius { get; set; }
         public double CuttingHeight { get; set; }
+
+        public CuttingTool() { }
 
         public CuttingTool(double radius, double height) {
             Radius = radius;
@@ -103,10 +107,13 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
         public abstract IEnumerable<CurveSegment> GetProfile();
+        [XmlIgnoreAttribute]
         public abstract Vector CenterToTip { get; }
     }
 
     public class BallMill : CuttingTool {
+        public BallMill() { }
+
         public BallMill(double radius, double height)
             : base(radius, height) {
 
@@ -125,9 +132,11 @@ namespace SpaceClaim.AddIn.CAM {
             return new[] { ballArc, sideLine, topLine };
         }
 
+        [XmlIgnoreAttribute]
         public override Vector CenterToTip { get { return -Radius * Direction.DirZ; } }
 
         // http://www.mcmaster.com/#end-mills/=k7nu4a
+        [XmlIgnoreAttribute]
         public static readonly Dictionary<string, BallMill> StandardSizes = new Dictionary<string, BallMill>() {
             {"1/8\" x 3/8\" cut", new BallMill((double)1/8/2 * Const.inches, (double)3/ 8* Const.inches)},
             {"3/16\" x 1/2\" cut", new BallMill((double)3/16/2 * Const.inches, (double)1/2 * Const.inches)},

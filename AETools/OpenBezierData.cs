@@ -1,23 +1,18 @@
 using System;
 using System.IO;
-using System.Windows.Forms;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
-using System.Xml;
 using System.Linq;
 using System.Text.RegularExpressions;
 using SpaceClaim.Api.V10;
-using SpaceClaim.Api.V10.Extensibility;
 using SpaceClaim.Api.V10.Geometry;
 using SpaceClaim.Api.V10.Modeler;
-using SpaceClaim.Api.V10.Display;
 using Application = SpaceClaim.Api.V10.Application;
-using SpaceClaim.AddInLibrary;
 
 namespace SpaceClaim.AddIn.AETools {
 
-	/* Open raw Bezier patches
+	/* Open raw Bezier patches from files that are specified by an index format that resembles this:
 32
 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16
 4,17,18,19,8,20,21,22,12,23,24,25,16,26,27,28
@@ -163,14 +158,12 @@ namespace SpaceClaim.AddIn.AETools {
 
 				IDictionary<string, Face> idToFace;
 				IDictionary<string, Edge> idToEdge;
-				bodies.Add(Body.Import(new BananaForeignBody(controlPoints), out idToFace, out idToEdge));
+				bodies.Add(Body.Import(new BezierPatchForeignBody(controlPoints), out idToFace, out idToEdge));
 				if (bodies[bodies.Count - 1].Faces.Count == 0) {
 					for (int i = 0; i < 4; i++) {
 						for (int j = 0; j < 4; j++)
-							DesignCurve.Create(mainPart, vertices[patchData[i, j] - 1].AsCurveSegment());
+							DesignCurve.Create(mainPart, CurveSegment.Create(PointCurve.Create(vertices[patchData[i, j] - 1])));
 					}
-
-
 				}
 
 			}
@@ -178,7 +171,6 @@ namespace SpaceClaim.AddIn.AETools {
 			foreach (Body body in bodies) {
 				if (body.Faces.Count > 0)
 					DesignBody.Create(mainPart, "Bezier", body);
-
 			}
 
 			activeWindow.InteractionMode = InteractionMode.Solid;
@@ -191,12 +183,12 @@ namespace SpaceClaim.AddIn.AETools {
 	}
 
 
-	#region BananaCAD foreign topology wrappers
+	#region BezierPatch foreign topology wrappers
 
-	class BananaForeignBody : ForeignBody {
+	class BezierPatchForeignBody : ForeignBody {
 		ControlPoint[,] vertices;
 
-		public BananaForeignBody(ControlPoint[,] vertices) {
+		public BezierPatchForeignBody(ControlPoint[,] vertices) {
 			Debug.Assert(vertices != null);
 			this.vertices = vertices;
 		}
@@ -209,7 +201,7 @@ namespace SpaceClaim.AddIn.AETools {
 			if (other == this)
 				return true;
 
-			var otherBody = other as BananaForeignBody;
+			var otherBody = other as BezierPatchForeignBody;
 			return otherBody != null && otherBody.vertices == vertices;
 		}
 
@@ -220,18 +212,18 @@ namespace SpaceClaim.AddIn.AETools {
 		#endregion
 
 		/*
-		 * BananaCAD doesn't have the concept of multiple lumps, so we pass the
-		 * IBananaBody down to a single lump.
+		 * BezierPatch doesn't have the concept of multiple lumps, so we pass the
+		 * IBezierPatchBody down to a single lump.
 		 */
 		public override ICollection<ForeignLump> Lumps {
-			get { return new ForeignLump[] { new BananaForeignLump(this, vertices) }; }
+			get { return new ForeignLump[] { new BezierPatchForeignLump(this, vertices) }; }
 		}
 	}
 
-	class BananaForeignLump : ForeignLump {
+	class BezierPatchForeignLump : ForeignLump {
 		ControlPoint[,] vertices;
 
-		public BananaForeignLump(BananaForeignBody parent, ControlPoint[,] vertices)
+		public BezierPatchForeignLump(BezierPatchForeignBody parent, ControlPoint[,] vertices)
 			: base(parent) {
 			Debug.Assert(vertices != null);
 			this.vertices = vertices;
@@ -245,7 +237,7 @@ namespace SpaceClaim.AddIn.AETools {
 			if (other == this)
 				return true;
 
-			var otherLump = other as BananaForeignLump;
+			var otherLump = other as BezierPatchForeignLump;
 			return otherLump != null && otherLump.vertices == vertices;
 		}
 
@@ -256,18 +248,18 @@ namespace SpaceClaim.AddIn.AETools {
 		#endregion
 
 		/*
-		 * BananaCAD doesn't have the concept of multiple shells, so we pass the
-		 * IBananaBody down to a single shell.
+		 * BezierPatch doesn't have the concept of multiple shells, so we pass the
+		 * IBezierPatchBody down to a single shell.
 		 */
 		public override ICollection<ForeignShell> Shells {
-			get { return new ForeignShell[] { new BananaForeignShell(this, vertices) }; }
+			get { return new ForeignShell[] { new BezierPatchForeignShell(this, vertices) }; }
 		}
 	}
 
-	class BananaForeignShell : ForeignShell {
+	class BezierPatchForeignShell : ForeignShell {
 		ControlPoint[,] vertices;
 
-		public BananaForeignShell(ForeignLump parent, ControlPoint[,] vertices)
+		public BezierPatchForeignShell(ForeignLump parent, ControlPoint[,] vertices)
 			: base(parent) {
 			Debug.Assert(vertices != null);
 			this.vertices = vertices;
@@ -281,7 +273,7 @@ namespace SpaceClaim.AddIn.AETools {
 			if (other == this)
 				return true;
 
-			var otherShell = other as BananaForeignShell;
+			var otherShell = other as BezierPatchForeignShell;
 			return otherShell != null && otherShell.vertices == vertices;
 		}
 
@@ -292,23 +284,23 @@ namespace SpaceClaim.AddIn.AETools {
 		#endregion
 
 		/*
-		 * Since our BananaCAD API happens to present information in exactly
+		 * Since our BezierPatch API happens to present information in exactly
 		 * the form required, this code is simpler than it might otherwise be.
 		 */
 		public override ICollection<ForeignFace> Faces {
 			get {
 				var faces = new List<ForeignFace>(1);
-				faces.Add(new BananaForeignFace(this, vertices));
+				faces.Add(new BezierPatchForeignFace(this, vertices));
 				return faces;
 			}
 		}
 	}
 
-	class BananaForeignFace : ForeignFace {
+	class BezierPatchForeignFace : ForeignFace {
 		ControlPoint[,] vertices;
 		NurbsSurface surface;
 
-		public BananaForeignFace(ForeignShell parent, ControlPoint[,] vertices)
+		public BezierPatchForeignFace(ForeignShell parent, ControlPoint[,] vertices)
 			: base(parent) {
 			Debug.Assert(vertices != null);
 			this.vertices = vertices;
@@ -327,7 +319,7 @@ namespace SpaceClaim.AddIn.AETools {
 			if (other == this)
 				return true;
 
-			var otherFace = other as BananaForeignFace;
+			var otherFace = other as BezierPatchForeignFace;
 			return otherFace != null && otherFace.surface == surface;
 		}
 
@@ -340,13 +332,13 @@ namespace SpaceClaim.AddIn.AETools {
 		public override ICollection<ForeignLoop> Loops {
 			get {
 				var loops = new List<ForeignLoop>(1);
-				loops.Add(new BananaForeignLoop(this));
+				loops.Add(new BezierPatchForeignLoop(this));
 				return loops;
 			}
 		}
 
 		/*
-		 * Since our BananaCAD API happens to present information in exactly
+		 * Since our BezierPatch API happens to present information in exactly
 		 * the form required, the code for this property is unrealistically simple.
 		 * In practice, the foreign surface would have to be converted into the
 		 * corresponding Surface object.
@@ -368,8 +360,8 @@ namespace SpaceClaim.AddIn.AETools {
 		}
 	}
 
-	class BananaForeignLoop : ForeignLoop {
-		public BananaForeignLoop(ForeignFace parent)
+	class BezierPatchForeignLoop : ForeignLoop {
+		public BezierPatchForeignLoop(ForeignFace parent)
 			: base(parent) {
 		}
 
@@ -394,27 +386,27 @@ namespace SpaceClaim.AddIn.AETools {
 		public override ICollection<ForeignFin> Fins {
 			get {
 				var fins = new List<ForeignFin>();
-				ControlPoint[,] facePoints = ((BananaForeignFace) Face).Vertices;
+				ControlPoint[,] facePoints = ((BezierPatchForeignFace) Face).Vertices;
 				int i = 0;
 
 				if (facePoints[0, 0].Position != facePoints[3, 0].Position)
-					fins.Add(new BananaForeignFin(this, new ControlPoint[] { facePoints[0, 0], facePoints[1, 0], facePoints[2, 0], facePoints[3, 0] }, i++));
+					fins.Add(new BezierPatchForeignFin(this, new ControlPoint[] { facePoints[0, 0], facePoints[1, 0], facePoints[2, 0], facePoints[3, 0] }, i++));
 				if (facePoints[3, 0].Position != facePoints[3, 3].Position)
-					fins.Add(new BananaForeignFin(this, new ControlPoint[] { facePoints[3, 0], facePoints[3, 1], facePoints[3, 2], facePoints[3, 3] }, i++));
+					fins.Add(new BezierPatchForeignFin(this, new ControlPoint[] { facePoints[3, 0], facePoints[3, 1], facePoints[3, 2], facePoints[3, 3] }, i++));
 				if (facePoints[3, 3].Position != facePoints[0, 3].Position)
-					fins.Add(new BananaForeignFin(this, new ControlPoint[] { facePoints[3, 3], facePoints[2, 3], facePoints[1, 3], facePoints[0, 3] }, i++));
+					fins.Add(new BezierPatchForeignFin(this, new ControlPoint[] { facePoints[3, 3], facePoints[2, 3], facePoints[1, 3], facePoints[0, 3] }, i++));
 				if (facePoints[0, 3].Position != facePoints[0, 0].Position)
-					fins.Add(new BananaForeignFin(this, new ControlPoint[] { facePoints[0, 3], facePoints[0, 2], facePoints[0, 1], facePoints[0, 0] }, i++));
+					fins.Add(new BezierPatchForeignFin(this, new ControlPoint[] { facePoints[0, 3], facePoints[0, 2], facePoints[0, 1], facePoints[0, 0] }, i++));
 				return fins;
 			}
 		}
 	}
 
-	class BananaForeignFin : ForeignFin {
+	class BezierPatchForeignFin : ForeignFin {
 		ControlPoint[] points;
 		int index;
 
-		public BananaForeignFin(ForeignLoop parent, ControlPoint[] points, int index)
+		public BezierPatchForeignFin(ForeignLoop parent, ControlPoint[] points, int index)
 			: base(parent) {
 			Debug.Assert(points != null);
 			this.points = points;
@@ -429,7 +421,7 @@ namespace SpaceClaim.AddIn.AETools {
 			if (other == this)
 				return true;
 
-			var otherFin = other as BananaForeignFin;
+			var otherFin = other as BezierPatchForeignFin;
 			return otherFin != null && otherFin.points == points;
 		}
 
@@ -448,15 +440,15 @@ namespace SpaceClaim.AddIn.AETools {
 		}
 
 		public override ForeignEdge Edge {
-			get { return new BananaForeignEdge(Loop.Face.Shell, points, index); }
+			get { return new BezierPatchForeignEdge(Loop.Face.Shell, points, index); }
 		}
 	}
 
-	class BananaForeignEdge : ForeignEdge {
+	class BezierPatchForeignEdge : ForeignEdge {
 		NurbsCurve nurbsCurve;
 		int index;
 
-		public BananaForeignEdge(ForeignShell parent, ControlPoint[] points, int index)
+		public BezierPatchForeignEdge(ForeignShell parent, ControlPoint[] points, int index)
 			: base(parent) {
 			Debug.Assert(points != null);
 
@@ -473,7 +465,7 @@ namespace SpaceClaim.AddIn.AETools {
 			if (other == this)
 				return true;
 
-			var otherEdge = other as BananaForeignEdge;
+			var otherEdge = other as BezierPatchForeignEdge;
 			return otherEdge != null && otherEdge.nurbsCurve == nurbsCurve;
 		}
 
@@ -484,7 +476,7 @@ namespace SpaceClaim.AddIn.AETools {
 		#endregion
 
 		/*
-		 * As with BananaForeignFace.Surface, this is unrealistically simple, and
+		 * As with BezierPatchForeignFace.Surface, this is unrealistically simple, and
 		 * a realistic case would involve geometry conversion.
 		 */
 		public override Curve Curve {
@@ -507,22 +499,22 @@ namespace SpaceClaim.AddIn.AETools {
 		 */
 		public override ForeignVertex StartVertex {
 			get {
-				return new BananaForeignVertex(Shell, nurbsCurve.ControlPoints[0].Position, index);
+				return new BezierPatchForeignVertex(Shell, nurbsCurve.ControlPoints[0].Position, index);
 			}
 		}
 
 		public override ForeignVertex EndVertex {
 			get {
-				return new BananaForeignVertex(Shell, nurbsCurve.ControlPoints[3].Position, (index + 1) % 4);
+				return new BezierPatchForeignVertex(Shell, nurbsCurve.ControlPoints[3].Position, (index + 1) % 4);
 			}
 		}
 	}
 
-	class BananaForeignVertex : ForeignVertex {
+	class BezierPatchForeignVertex : ForeignVertex {
 		Point position;
 		int index;
 
-		public BananaForeignVertex(ForeignShell parent, Point position, int index)
+		public BezierPatchForeignVertex(ForeignShell parent, Point position, int index)
 			: base(parent) {
 			Debug.Assert(position != null);
 			this.position = position;
@@ -537,7 +529,7 @@ namespace SpaceClaim.AddIn.AETools {
 			if (other == this)
 				return true;
 
-			var otherVertex = other as BananaForeignVertex;
+			var otherVertex = other as BezierPatchForeignVertex;
 			return otherVertex != null && otherVertex.index == index;
 		}
 

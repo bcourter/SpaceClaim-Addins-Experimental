@@ -403,12 +403,12 @@ namespace SpaceClaim.AddIn.AETools {
                 var bottommingParams = new CuttingParameters(smallerBall.Radius / 2, 1, 0.25 * inches);
 
                 foreach (Face face in newParabolas) {
-                    var toolPath = new UVFacingToolPath(face, smallerBall, contouringParams);
+                    var toolPath = new FaceToolPath(face, smallerBall, contouringParams, FaceToolPath.StrategyType.UV);
                     FaceToolPathObject.Create(desBody.Faces.Where(f => f.Shape == face).First(), toolPath, System.Drawing.Color.DarkCyan);
                 }
 
               //  var bottommingToolPath = new SpiralFacingToolPath(newParabolaBottom, newParabolaBottom.Edges.Select(e => e.Faces.Where(f => f != newParabolaBottom).First()).ToArray(), smallerBall, bottommingParams);
-                var bottommingToolPath = new SpiralFacingToolPath(newParabolaBottom, smallerBall, bottommingParams);
+                var bottommingToolPath = new FaceToolPath(newParabolaBottom, smallerBall, bottommingParams, FaceToolPath.StrategyType.Spiral);
                 FaceToolPathObject.Create(desBody.Faces.Where(f => f.Shape == newParabolaBottom).First(), bottommingToolPath, System.Drawing.Color.DarkOrange);
 
                 //   Body insideTop = ArcLoft(domeHeight, cell.Center, insetBody);

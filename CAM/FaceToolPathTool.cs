@@ -58,7 +58,7 @@ namespace SpaceClaim.AddIn.CAM {
 
             var tool = BallMill.StandardSizes.Values.ToArray()[4];
             var parameters = new CuttingParameters(tool.Radius, 10, tool.Radius * 2);
-            FaceToolPathObject.DefaultToolPath = new UVFacingToolPath(null, tool, parameters);
+            FaceToolPathObject.DefaultToolPath = new FaceToolPath(null, tool, parameters, FaceToolPath.StrategyType.UV);
             FaceToolPathObject.DefaultColor = ToolPathColorProperty.ColorList[0];
             FaceToolPathObject.DefaultStrategy = 0;
         }
@@ -107,7 +107,8 @@ namespace SpaceClaim.AddIn.CAM {
 
         private void UpdatePrototypeObject() {
             if (prototypeObj == null || prototypeObj.IsDeleted)
-                WriteBlock.ExecuteTask("Create preselection", () => prototypeObj = FaceToolPathObject.DefaultToolPathObject);
+                //     WriteBlock.ExecuteTask("Create preselection", () => prototypeObj = FaceToolPathObject.DefaultToolPathObject);
+                prototypeObj = FaceToolPathObject.DefaultToolPathObject;
 
             InteractionContext.SingleSelection = prototypeObj.Subject;
         }
