@@ -1,7 +1,7 @@
 WARNING: You don't want to go here.
 
 Know that:
-* This is mainly code I've created for art projects, and is not designed to be reusable.  
+* This is mainly code I've created for art projects.  It is not designed to be reusable.  
 * It includes some disgusting hacks that can crash SpaceClaim.
 * The UI is awful.
 * The code is a terrible mess.

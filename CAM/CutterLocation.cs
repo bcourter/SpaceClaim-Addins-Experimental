@@ -9,6 +9,9 @@ using System.Drawing;
 using System.Threading;
 using System.Linq;
 using System.Windows.Forms;
+using System.Xml;
+using System.Xml.Serialization;
+
 using SpaceClaim.Api.V10;
 using SpaceClaim.Api.V10.Display;
 using CAM.Properties;
@@ -33,22 +36,19 @@ namespace SpaceClaim.AddIn.CAM {
     }
 
     public struct CutterLocation {
-        public Point Center { get; private set; }
+        [XmlIgnoreAttribute]
         public Point Point { get; private set; }
-        public bool IsRapid { get; private set; }
+        public bool IsRapid { get; set; }
 
-        public CutterLocation(Point center, Point point, bool isRapid)
+        public CutterLocation(Point point, bool isRapid)
             : this() {
-            Center = center;
             Point = point;
             IsRapid = isRapid;
         }
 
-        public CutterLocation(Point center, Vector tip, bool isRapid)
-            : this() {
-            Center = center;
-            Point = center + tip;
-            IsRapid = isRapid;
+        public double[] SerializablePoint {
+            get { return new[] { Point.X, Point.Y, Point.Z }; }
+            set { Point = Point.Create(value[0], value[1], value[2]); }
         }
     }
 

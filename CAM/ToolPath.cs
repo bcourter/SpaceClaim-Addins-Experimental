@@ -29,7 +29,7 @@ namespace SpaceClaim.AddIn.CAM {
     [XmlInclude(typeof(ToolPath))]
     [XmlInclude(typeof(FaceToolPath))]
     public abstract class Instruction {
-     //  protected static XmlSerializer serializer = new XmlSerializer(typeof(Instruction));
+        //  protected static XmlSerializer serializer = new XmlSerializer(typeof(Instruction));
 
         protected Instruction() { }
 
@@ -40,7 +40,7 @@ namespace SpaceClaim.AddIn.CAM {
                 };
 
                 using (XmlWriter xmlWriter = XmlWriter.Create(stringWriter, settings)) {
-                    XmlSerializer serializer = new XmlSerializer(this.GetType()); 
+                    XmlSerializer serializer = new XmlSerializer(this.GetType());
                     var namespaces = new XmlSerializerNamespaces(new[] { XmlQualifiedName.Empty }); // omit namespaces from root node
                     serializer.Serialize(xmlWriter, this, namespaces);
                 }
@@ -48,7 +48,7 @@ namespace SpaceClaim.AddIn.CAM {
             }
         }
 
-        public static T FromString<T>(string text) where T: Instruction{
+        public static T FromString<T>(string text) where T : Instruction {
             if (string.IsNullOrEmpty(text))
                 return null;
             using (var reader = new StringReader(text)) {
@@ -58,7 +58,6 @@ namespace SpaceClaim.AddIn.CAM {
         }
     }
 
-    [Serializable()]
     public class Operation : Instruction {
         List<Instruction> Instructions { get; set; }  // can't be IList due to serialization
 
@@ -72,7 +71,9 @@ namespace SpaceClaim.AddIn.CAM {
     public abstract class ToolPath : Instruction {
         public CuttingTool CuttingTool { get; set; }
         public CuttingParameters CuttingParameters { get; set; }
+        [XmlIgnoreAttribute]
         public Frame Csys { get; set; }
+        public CutterLocation[] CutterLocations { get; set; }
 
         protected ToolPath() : base() { }
 
@@ -85,35 +86,55 @@ namespace SpaceClaim.AddIn.CAM {
             Csys = Frame.World;
         }
 
-        public abstract bool TryGetCutterLocations(out IList<CutterLocation> locations);
-        protected abstract IList<CutterLocation> GetCutterLocations();
+        //public abstract bool TryGetCutterLocations(out IList<CutterLocation> locations);
+        protected abstract CutterLocation[] GetCutterLocations();
+
+        public void UpdateCutterLocations() {
+            CutterLocations = GetCutterLocations();
+        }
 
         public Point RestPoint(Point point) {
             return Point.Create(point.X, point.Y, CuttingParameters.RestZ + CuttingTool.Radius);
         }
 
-        public IList<CutterLocation> GetCurves(out IList<CurveSegment> cutterCurves, out IList<CurveSegment> rapidCurves, out IList<CurveSegment> arrowCurves) {
-            CutterLocation[] cutterLocations = GetCutterLocations().ToArray();
+        public void GetCurves(out IList<CurveSegment> cutterCurves, out IList<CurveSegment> rapidCurves, out IList<CurveSegment> arrowCurves) {
+            Debug.Assert(CutterLocations != null);
+
             cutterCurves = new List<CurveSegment>();
             rapidCurves = new List<CurveSegment>();
             arrowCurves = new List<CurveSegment>();
 
-            for (int i = 0; i < cutterLocations.Length - 1; i++) {
-                CurveSegment curve = CurveSegment.Create(cutterLocations[i].Point, cutterLocations[i + 1].Point);
+            for (int i = 0; i < CutterLocations.Length - 1; i++) {
+                CurveSegment curve = CurveSegment.Create(CutterLocations[i].Point, CutterLocations[i + 1].Point);
                 //Debug.Assert(curve != null);
                 if (curve == null)
                     continue;
 
-                if (cutterLocations[i + 1].IsRapid)
+                if (CutterLocations[i + 1].IsRapid)
                     rapidCurves.Add(curve);
                 else
                     cutterCurves.Add(curve);
 
-                if (cutterLocations[i].IsRapid && !cutterLocations[i + 1].IsRapid)
+                if (CutterLocations[i].IsRapid && !CutterLocations[i + 1].IsRapid)
                     arrowCurves.Add(curve);
             }
+        }
 
-            return cutterLocations;
+        public double[] SerializableFrame {
+            get {
+                return new[] { 
+                    Csys.Origin.X, Csys.Origin.Y, Csys.Origin.Z,
+                    Csys.DirX.X, Csys.DirX.Y, Csys.DirX.Z,
+                    Csys.DirY.X, Csys.DirY.Y, Csys.DirY.Z,
+                };
+            }
+            set {
+                Csys = Frame.Create(
+                    Point.Create(value[0], value[1], value[2]),
+                    Direction.Create(value[3], value[4], value[5]),
+                    Direction.Create(value[6], value[7], value[8])
+                );
+            }
         }
     }
 
@@ -145,17 +166,7 @@ namespace SpaceClaim.AddIn.CAM {
             Strategy = strategy;
         }
 
-        public override bool TryGetCutterLocations(out IList<CutterLocation> locations) {
-            if (face == null) {
-                locations = null;
-                return false;
-            }
-
-            locations = GetCutterLocations();
-            return true;
-        }
-
-        protected override IList<CutterLocation> GetCutterLocations() {
+        protected override CutterLocation[] GetCutterLocations() {
             switch (Strategy) {
                 case StrategyType.UV:
                     return UVFacingToolPathFactory.GetCutterLocations(this);
@@ -178,28 +189,31 @@ namespace SpaceClaim.AddIn.CAM {
             get { return face; }
             set {
                 face = value;
-                if (face != null) {
-                    boxUV = face.BoxUV;
-                    surface = face.Geometry;
-                    StartU = boxUV.RangeU.Start;
-                    EndU = boxUV.RangeU.End;
-                    StartV = boxUV.RangeV.Start;
-                    EndV = boxUV.RangeV.End;
-
-                    const int testSteps = 32;
-                    for (int i = 0; i < testSteps; i++) {
-                        double u = (double)i / testSteps * boxUV.RangeU.Span;
-                        maxLength = Math.Max(maxLength, surface.GetLength(
-                            PointUV.Create(u, StartV),
-                            PointUV.Create(u, EndV)
-                        ));
-                    }
-
-                    SurfaceEvaluation surfEval = surface.Evaluate(PointUV.Create((StartU + EndU) / 2, (StartV + EndV) / 2));
-                    Double sign = Vector.Dot(surfEval.Normal.UnitVector, Csys.DirZ.UnitVector);
-
-                    isNormalFlipped = sign < 0;
+                if (face == null) {
+                    CutterLocations = null;
+                    return;
                 }
+
+                boxUV = face.BoxUV;
+                surface = face.Geometry;
+                StartU = boxUV.RangeU.Start;
+                EndU = boxUV.RangeU.End;
+                StartV = boxUV.RangeV.Start;
+                EndV = boxUV.RangeV.End;
+
+                const int testSteps = 32;
+                for (int i = 0; i < testSteps; i++) {
+                    double u = (double)i / testSteps * boxUV.RangeU.Span;
+                    maxLength = Math.Max(maxLength, surface.GetLength(
+                        PointUV.Create(u, StartV),
+                        PointUV.Create(u, EndV)
+                    ));
+                }
+
+                SurfaceEvaluation surfEval = surface.Evaluate(PointUV.Create((StartU + EndU) / 2, (StartV + EndV) / 2));
+                Double sign = Vector.Dot(surfEval.Normal.UnitVector, Csys.DirZ.UnitVector);
+
+                isNormalFlipped = sign < 0;
             }
         }
 
@@ -280,16 +294,16 @@ namespace SpaceClaim.AddIn.CAM {
             return positions;
         }
 
-        public static IList<CutterLocation> GetCutterLocations(FaceToolPath toolPath) {
+        public static CutterLocation[] GetCutterLocations(FaceToolPath toolPath) {
             var CutterLocations = new List<CutterLocation>();
             Vector tip = -toolPath.Csys.DirZ * toolPath.CuttingTool.Radius;
             foreach (IList<Point> points in GetChains(toolPath)) {
-                CutterLocations.Add(new CutterLocation(toolPath.RestPoint(points[0]), tip, true));
-                CutterLocations.AddRange(points.Select(p => new CutterLocation(p, tip, false)));
-                CutterLocations.Add(new CutterLocation(toolPath.RestPoint(points[points.Count - 1]), tip, true));
+                CutterLocations.Add(new CutterLocation(toolPath.RestPoint(points[0]) + tip, true));
+                CutterLocations.AddRange(points.Select(p => new CutterLocation(p + tip, false)));
+                CutterLocations.Add(new CutterLocation(toolPath.RestPoint(points[points.Count - 1]) + tip, true));
             }
 
-            return CutterLocations;
+            return CutterLocations.ToArray();
         }
 
         private static int Count(FaceToolPath toolPath) {
@@ -297,8 +311,8 @@ namespace SpaceClaim.AddIn.CAM {
         }
     }
 
-    public static class SpiralFacingToolPathFactory  {
-        public static IList<CutterLocation> GetCutterLocations(FaceToolPath toolPath) {
+    public static class SpiralFacingToolPathFactory {
+        public static CutterLocation[] GetCutterLocations(FaceToolPath toolPath) {
             Debug.Assert(toolPath.Face.Loops.Where(l => l.IsOuter).Count() == 1);
             ITrimmedCurve[] curves = toolPath.Face.Loops.Where(l => l.IsOuter).First().Edges.ToArray();
 
@@ -360,12 +374,12 @@ namespace SpaceClaim.AddIn.CAM {
             closeClearanceVector = toolPath.Csys.DirZ * tool.Radius;
         }
 
-        public IList<CutterLocation> GetSpiralCuttingLocations() {
+        public CutterLocation[] GetSpiralCuttingLocations() {
             var root = BuildChainTreeNodes();
             var locations = new List<CutterLocation>();
             RecurseDescendChainTreeNodes(locations, root);
             locations.Reverse();
-            return locations;
+            return locations.ToArray();
         }
 
         // Does the heavy lifting of creating the offsets for each spiral, from the outside in, but to not attempt to order the result
@@ -396,7 +410,7 @@ namespace SpaceClaim.AddIn.CAM {
         // Order the heirarchy of islands and add clearance heights
         bool isOnSpiral = false;
         private void RecurseDescendChainTreeNodes(List<CutterLocation> locations, ChainTreeNode parent) {
-            Point initialPoint = locations.Count == 0 ? Point.Origin : locations[locations.Count - 1].Center;
+            Point initialPoint = locations.Count == 0 ? Point.Origin : locations[locations.Count - 1].Point;
             ChainTreeNode[] nodes = parent.Children.OrderBy(n => (n.OrderedCurves.First().StartPoint - initialPoint).Magnitude).ToArray();
 
             foreach (ChainTreeNode node in nodes) {
@@ -405,19 +419,19 @@ namespace SpaceClaim.AddIn.CAM {
                 Point endPoint = points[points.Count - 1];
 
                 if (!isOnSpiral)
-                    locations.Add(new CutterLocation(toolPath.RestPoint(startPoint), tip, true));
+                    locations.Add(new CutterLocation(toolPath.RestPoint(startPoint) + tip, true));
 
                 isOnSpiral = true;
 
-                locations.Add(new CutterLocation(startPoint + closeClearanceVector, tip, true));
-                locations.AddRange(points.Select(p => new CutterLocation(p, tip, false)));
-                locations.Add(new CutterLocation(endPoint + closeClearanceVector, tip, true));
+                locations.Add(new CutterLocation(startPoint + closeClearanceVector + tip, true));
+                locations.AddRange(points.Select(p => new CutterLocation(p + tip, false)));
+                locations.Add(new CutterLocation(endPoint + closeClearanceVector + tip, true));
 
                 RecurseDescendChainTreeNodes(locations, node);
                 isOnSpiral = false;
 
-                var endLocation = new CutterLocation(toolPath.RestPoint(locations[locations.Count - 1].Center), tip, true);
-                if (locations[locations.Count - 1].Center != endLocation.Center)
+                var endLocation = new CutterLocation(toolPath.RestPoint(locations[locations.Count - 1].Point) + tip, true);
+                if (locations[locations.Count - 1].Point != endLocation.Point)
                     locations.Add(endLocation);
             }
         }

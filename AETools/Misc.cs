@@ -16,57 +16,45 @@ using SpaceClaim.AddIn.CAM;
 using SpaceClaim.AddInLibrary;
 using SpaceClaim.AddIn.Unfold;
 using Application = SpaceClaim.Api.V10.Application;
-
 using BenTools.Data;
 using BenTools.Mathematics;
 using VectorVoronoi = BenTools.Mathematics.Vector;
 using Vector = SpaceClaim.Api.V10.Geometry.Vector;
 
-
 namespace SpaceClaim.AddIn.AETools {
     static class Export {
         const string exportCommandName = "AEExport";
-
         public static void Initialize() {
             Command command;
-
             command = Command.Create(exportCommandName);
             command.Text = "XXX";
             command.Hint = "Export to BRL-CAD (Experimental).";
             command.Executing += XXX_Executing;
             command.Updating += AddInHelper.EnabledCommand_Updating;
-
             command = Command.Create("AECurves");
             command.Text = "Curves";
             command.Hint = "TestCurves.";
             command.Executing += Curves_Executing;
             command.Updating += AddInHelper.EnabledCommand_Updating;
-
             command = Command.Create("AEVector");
             command.Text = "Vector";
             command.Hint = "Test Vector.";
             command.Executing += Vector_Executing;
             command.Updating += AddInHelper.EnabledCommand_Updating;
         }
-
         static void XXX_Executing(object sender, EventArgs eventArgs) {
-
 #if false // wrapping
 			Window activeWindow = Window.ActiveWindow;
 			Part part = activeWindow.Scene as Part;
-
 			ICollection<IDesignBody> iDesBodies = activeWindow.GetAllSelectedIDesignBodies();
 			if (iDesBodies.Count != 2)
 				return;
-
 			Body pathBody = iDesBodies.First().Master.Shape.Copy();
 			pathBody.Transform(iDesBodies.First().TransformToMaster.Inverse);
 			Body wrapBody = iDesBodies.Last().Master.Shape.Copy();
 			wrapBody.Transform(iDesBodies.Last().TransformToMaster.Inverse);
-
 			Debug.Assert(wrapBody.Faces.Count == 1);
 			Debug.Assert(wrapBody.Faces.First().Loops.Count == 1);
-
 			Point middle = wrapBody.GetBoundingBox(Matrix.Identity).Center;
 			var wrapCurves = new TrimmedCurveChain(wrapBody.Edges.Where(d => d.StartPoint.Z < middle.Z && d.EndPoint.Z < middle.Z).Cast<ITrimmedCurve>().ToArray());
 			var wrapPoints = new List<Point>();
@@ -79,11 +67,8 @@ namespace SpaceClaim.AddIn.AETools {
 					break;
 				wrapPoints.Add(point);
 			}
-
 			wrapPoints.Add(wrapCurves.EndPoint);
-
 			Separation separation = pathBody.GetClosestSeparation(wrapBody);
-
 			int closestWrapIndex = 0;
 			double closestDistance = double.MaxValue;
 			for (int i = 0; i < wrapPoints.Count; i++) {
@@ -93,122 +78,95 @@ namespace SpaceClaim.AddIn.AETools {
 					closestDistance = distance;
 				}
 			}
-
 			Debug.Assert(pathBody.Faces.Count == 1);
 			Debug.Assert(pathBody.Faces.First().Loops.Count == 1);
-
 			var pathCircularList = new CircularList<ITrimmedCurve>(pathBody.Faces.First().Loops.First().Fins.Select(f => f.Edge).ToArray());
 			var pathList = pathCircularList.ToList();
 			List<ITrimmedCurve> pathListOrdered = pathList.OrderBy(p => (p.ProjectPoint(separation.PointA).Point - separation.PointA).MagnitudeSquared()).ToList();
 			int backwardPathIndex = Math.Min(pathList.IndexOf(pathListOrdered[0]), pathList.IndexOf(pathListOrdered[1]));
 			int forwardPathIndex = Math.Max(pathList.IndexOf(pathListOrdered[0]), pathList.IndexOf(pathListOrdered[1]));
-
 			Point backwardPoint = new Point[] { pathList[backwardPathIndex].StartPoint, pathList[backwardPathIndex].EndPoint }.Average();
 			Point forwardPoint = new Point[] { pathList[forwardPathIndex].StartPoint, pathList[forwardPathIndex].EndPoint }.Average();
-
 			DesignCurve startCurvePoint = DesignCurve.Create(part, CurveSegment.Create(PointCurve.Create(backwardPoint)));
 			startCurvePoint.SetColor(null, System.Drawing.Color.Red);
 			startCurvePoint = DesignCurve.Create(part, CurveSegment.Create(PointCurve.Create(forwardPoint)));
 			startCurvePoint.SetColor(null, System.Drawing.Color.Red);
-
 			//	Point startPoint = pathList[closePaths[0]];
-
 			int profileSense = 1;
 			if ((backwardPoint - wrapPoints[closestWrapIndex + 1]).MagnitudeSquared() < (forwardPoint - wrapPoints[closestWrapIndex + 1]).MagnitudeSquared())
 				profileSense = -1;
-
 			var finishedPoints = new List<Point>();
 			finishedPoints.AddRange(Create3DPoints(wrapPoints, closestWrapIndex, pathCircularList, false, -profileSense, forwardPathIndex + 1));
 			finishedPoints.Add(wrapPoints[closestWrapIndex]);
 			finishedPoints.AddRange(Create3DPoints(wrapPoints, closestWrapIndex, pathCircularList, true, profileSense, backwardPathIndex));
-
 			DesignCurve.Create(part, CurveSegment.Create(NurbsCurve.CreateThroughPoints(true, finishedPoints, tolerance)));
-
 		//	foreach (Point p in finishedPoints)
 		//	    DesignCurve.Create(part, CurveSegment.Create(PointCurve.Create(p)));
 		}
-
 		private static IList<Point> Create3DPoints(List<Point> wrapPoints, int closestWrapIndex, CircularList<ITrimmedCurve> pathCircularList, bool wrapSense, int profileSense, int startPathIndex) {
 			var pathOrdered = new List<ITrimmedCurve>();
 			for (int i = 0; i < pathCircularList.Count; i++)
 				pathOrdered.Add(pathCircularList[startPathIndex + profileSense * i]);
-
 			var pathChain = new TrimmedCurveChain(pathOrdered);
-
 			var curvePoints = new List<Point>();
-
 			Point point;
 			double offset = 0;
 			if (wrapSense) {
 				for (int i = closestWrapIndex + 1; i < wrapPoints.Count; i++) {
 					offset += (wrapPoints[i] - wrapPoints[i - 1]).Magnitude;
-
 					if (!pathChain.TryGetPointAlongCurve(offset, out point))
 						break;
-
 					curvePoints.Add(Point.Create(point.X, point.Y, wrapPoints[i].Z));
 				}
-
 			}
 			else {
 				pathChain.Reverse();
 				for (int i = closestWrapIndex; i > 0; i--) {
 					offset += (wrapPoints[i] - wrapPoints[i - 1]).Magnitude;
-
 					if (!pathChain.TryGetPointAlongCurve(offset, out point))
 						break;
-
 					curvePoints.Add(Point.Create(point.X, point.Y, wrapPoints[i].Z));
 				}
-
 				curvePoints.Reverse();
 			}
-
 			return curvePoints;
 		}
 #endif
-
 #if true // planar offset
             const double inches = 25.4 / 1000;
-
             const double webWidth = (double)3 / 32 * inches;
-
             const double circuitBoardBandThickness = 0.001;
             const double circuitBoardBandWidth = 0.01;
-            const double circuitBoardBandPeriod = (double)1 / 60;
+            const double circuitBoardBandPeriod = (double)1 / 30;
+            const double circuitBoardBandFlat = circuitBoardBandWidth; // circuitBoardBandPeriod / 2;
             const double circuitBoardLedSize = 0.005;
             const double circuitBoardLedHoleSize = 0.281 * inches; // K drill -- 5mm * sqrt(2) = 0.278388
             const double circuitBoardLedHeight = 0.002;
-
             const double focusMaterialThickness = (0.75 - .01) * inches; //  http://www.interstateplastics.com/Black-Hdpe-Sheet-HDPBE.php?sku=HDPBE&vid=201211120902-7p&dim2=48&dim3=48&thickness=0.750&qty=1&recalculate.x=123&recalculate.y=18
             //     const double focusMaterialThickness = (0.75 - .038) * inches; // McMaster 8619K487	
-            const double focusHeight = focusMaterialThickness - circuitBoardBandThickness - circuitBoardLedHeight;
-
-        //    const double domeMaterialThickness = 0.75; //   http://www.interstateplastics.com/Clear-Acrylic-Cast-Paper-Sheet-ACRCLCP.php?sku=ACRCLCP&vid=201211180031-7p&dim2=48&dim3=48&thickness=0.750&qty=1
+            const double focusHeight = focusMaterialThickness - circuitBoardBandThickness * 3 - circuitBoardLedHeight;
+            //    const double domeMaterialThickness = 0.75; //   http://www.interstateplastics.com/Clear-Acrylic-Cast-Paper-Sheet-ACRCLCP.php?sku=ACRCLCP&vid=201211180031-7p&dim2=48&dim3=48&thickness=0.750&qty=1
             //         const double domeMaterialThickness = (double)11 / 16 - 0.049; // McMaster 8560K367	
-            const double domeHeight = (double)23 / 32 * inches;
-            const double domeRootThickness = (double)3 / 16 * inches; 
-
+            const double domeHeight = (double)21 / 32 * inches;
+            const double domeRootThickness = (double)3 / 16 * inches;
             const double boxSize = 48 * inches;
             const double boxLimit = 46 * inches;
 
 
+
             int maxPrint = 3;
 
-
-            Point circuitBoardBoxCorner = Point.Create(circuitBoardBandPeriod / 2, circuitBoardBandWidth / 2, circuitBoardBandThickness / 2);
+            Point circuitBoardBoxCorner = Point.Create(circuitBoardBandFlat / 2, circuitBoardBandWidth / 2, circuitBoardBandThickness / 2);
             Box circuitBoardBox = Box.Create(circuitBoardBoxCorner, -1 * circuitBoardBoxCorner);
             Point circuitBoardLedCorner = Point.Create(circuitBoardLedSize / 2, circuitBoardLedSize / 2, circuitBoardLedHeight / 2);
             Box circuitBoardLedBox = Box.Create(circuitBoardLedCorner, -1 * circuitBoardLedCorner);
-
-            Point circuitBendStartLeft = Point.Create(circuitBoardBandPeriod / 2, circuitBoardBandWidth / 2, -circuitBoardBandThickness);
-            Point circuitBendStartRight = Point.Create(circuitBoardBandPeriod / 2, -circuitBoardBandWidth / 2, -circuitBoardBandThickness);
-            Point circuitBendEndLeft = Point.Create(-circuitBoardBandPeriod / 2, circuitBoardBandWidth / 2, -circuitBoardBandThickness);
-            Point circuitBendEndRight = Point.Create(-circuitBoardBandPeriod / 2, -circuitBoardBandWidth / 2, -circuitBoardBandThickness);
-            Vector circuitBendVector = Vector.Create(-circuitBoardBandPeriod, 0, 0);
-
-            int count = 1024;
-            int countExtra = 1222;
+            Point circuitBendStartLeft = Point.Create(circuitBoardBandFlat / 2, circuitBoardBandWidth / 2, -circuitBoardBandThickness);
+            Point circuitBendStartRight = Point.Create(circuitBoardBandFlat / 2, -circuitBoardBandWidth / 2, -circuitBoardBandThickness);
+            Point circuitBendEndLeft = Point.Create(-circuitBoardBandFlat / 2, circuitBoardBandWidth / 2, -circuitBoardBandThickness);
+            Point circuitBendEndRight = Point.Create(-circuitBoardBandFlat / 2, -circuitBoardBandWidth / 2, -circuitBoardBandThickness);
+            Vector circuitBendVector = Vector.Create(-circuitBoardBandFlat, 0, 0);
+            int count = 1280;
+            int countExtra = 1600;
 
             Part MainPart = Window.ActiveWindow.Scene as Part;
             DesignBody desBody;
@@ -216,16 +174,14 @@ namespace SpaceClaim.AddIn.AETools {
             Layer lensLayer = Layer.Create(MainPart.Document, "Lenses", System.Drawing.Color.White);
             Layer stripLayer = Layer.Create(MainPart.Document, "Strip", System.Drawing.Color.LightSlateGray);
             Layer toolpathLayer = Layer.Create(MainPart.Document, "Toolpaths", System.Drawing.Color.DarkGoldenrod);
-
-            Part seedPart = Part.Create(MainPart.Document, "Seed");
-            DesignCurve.Create(seedPart, CurveSegment.Create(PointCurve.Create(Point.Origin)));
-            desBody = ShapeHelper.CreateBlock(circuitBoardBox, seedPart);
+            Part LedPart = Part.Create(MainPart.Document, "Led");
+            DesignCurve.Create(LedPart, CurveSegment.Create(PointCurve.Create(Point.Origin)));
+            desBody = ShapeHelper.CreateBlock(circuitBoardBox, LedPart);
             desBody.Transform(Matrix.CreateTranslation(Direction.DirZ * (-circuitBoardLedHeight - circuitBoardBandThickness / 2)));
             desBody.Layer = stripLayer;
-            desBody = ShapeHelper.CreateBlock(circuitBoardLedBox, seedPart);
+            desBody = ShapeHelper.CreateBlock(circuitBoardLedBox, LedPart);
             desBody.Transform(Matrix.CreateTranslation(Direction.DirZ * -circuitBoardLedHeight / 2));
             desBody.Layer = stripLayer;
-
             var points = new List<Point>();
             double phi = (1 + Math.Sqrt(5)) / 2;
             for (int i = 1; i < countExtra + 1; i++) {
@@ -235,7 +191,6 @@ namespace SpaceClaim.AddIn.AETools {
                 Point point = trans * Point.Create(radius, 0, 0);
                 points.Add(point);
             }
-
             Box box = Box.Create(points.Take(count).ToArray());
             Point[] boxPolygon = new Point[] {
                 Point.Create(boxSize / 2, boxSize / 2, 0),
@@ -244,34 +199,32 @@ namespace SpaceClaim.AddIn.AETools {
                 Point.Create(boxSize / 2, -boxSize / 2, 0)
             };
             boxPolygon.AsPolygon().Print();
-
             double size = Math.Max(box.Size.X, box.Size.Y);
             points = points.Select(p => (p - box.Center.Vector) * ((boxLimit) / size)).ToList();
-
             Dictionary<VectorVoronoi, Cell> cells;
             List<VectorVoronoi> vectors;
             List<CurveSegment> outerEdges;
             CreateVoronoi(count, points, out cells, out vectors, out outerEdges);
 
-      //      int printCount = 0;
-
+            // Tents for bends
+            //      int printCount = 0;
             //if (printCount++ <= maxPrint * 20) {
             //    Point pA = Point.Create(edge.VVertexA.X, edge.VVertexA.Y, 0);
             //    Point pB = Point.Create(edge.VVertexB.X, edge.VVertexB.Y, 0);
             //    CurveSegment nominalCurve = CurveSegment.Create(pA, pB);
-
             //    CurveSegment apexCurve = nominalCurve.CreateTransformedCopy(Matrix.CreateTranslation(-Direction.DirZ * focusRootThickness));
             //    Direction offsetDir = Direction.Cross((apexCurve.EndPoint - apexCurve.StartPoint).Direction, Direction.DirZ);
             //    CurveSegment curveA = nominalCurve.CreateTransformedCopy(Matrix.CreateTranslation(-Direction.DirZ * focusMaterialThickness + offsetDir * focusApexWidth / 2));
             //    CurveSegment curveB = nominalCurve.CreateTransformedCopy(Matrix.CreateTranslation(-Direction.DirZ * focusMaterialThickness - offsetDir * focusApexWidth / 2));
-
             //    Body.LoftProfiles(new ITrimmedCurve[][] { new ITrimmedCurve[] { curveA }, new ITrimmedCurve[] { apexCurve } }, false, false).Print();
             //    Body.LoftProfiles(new ITrimmedCurve[][] { new ITrimmedCurve[] { curveB }, new ITrimmedCurve[] { apexCurve } }, false, false).Print();
             //}
 
+            // Find cell nearest neighbors, outward
             int seedIndex = 0;
             List<Cell> seeds = new List<Cell>();
             List<Cell> used = new List<Cell>();
+            var notePlane = DatumPlane.Create(MainPart, "xxx", Plane.PlaneXY);
             while (seedIndex < count) {
                 Cell cell = cells[vectors[seedIndex++]];
                 if (used.Contains(cell))
@@ -279,91 +232,116 @@ namespace SpaceClaim.AddIn.AETools {
 
                 seeds.Add(cell);
                 double lastAngle = 0;
+                double maxBendAngle = Math.PI / 6;
                 while (cell != null) {
                     used.Add(cell);
-                    Line radial = Line.Create(Point.Origin, cell.Center.Vector.Direction);
                     Cell[] nextCandidates = cell.Neighbors
                         .Where(c => c.Center.Vector.MagnitudeSquared() > cell.Center.Vector.MagnitudeSquared())
                         .Where(c => !used.Contains(c))
                         .OrderBy(p => (cell.Center - p.Center).MagnitudeSquared())
                         .ToArray();
-
                     cell.Next = null;
-                    if (nextCandidates.Length >= 2) {
-                        double angle = AddInHelper.AngleBetween(Point.Origin - cell.Center, Point.Origin - nextCandidates[0].Center);
-                        if (Math.Abs(angle - lastAngle) / angle < 0.5 || lastAngle == 0)
-                            cell.Next = nextCandidates[0];
 
-                        angle = AddInHelper.AngleBetween(Point.Origin - cell.Center, Point.Origin - nextCandidates[1].Center);
-                        if (Math.Abs(angle - lastAngle) / angle < 0.5 && (nextCandidates[1].Center - cell.Center).Magnitude < 0.8 * circuitBoardBandPeriod / 2)
-                            cell.Next = nextCandidates[1];
+                    if (nextCandidates.Length == 0)
+                        break;
+
+                    Note.Create(notePlane, notePlane.Shape.Geometry.ProjectPoint(cell.Center).Param, TextPoint.Center, 0.25 * inches, seedIndex.ToString());
+
+                    // Max attainable distance is the period between cells * cos(2*angle deviation)
+                    double angle0 = (nextCandidates[0].Center - cell.Center).AngleInXY();
+                    if (lastAngle == 0) {
+                        cell.Next = nextCandidates[0];
+                        lastAngle = angle0;
+                        cell = cell.Next;
+                        continue;
                     }
 
-                    if (nextCandidates.Length == 1)
-                        cell.Next = nextCandidates[0];
+                    if (nextCandidates.Length >= 2) {
+                        double angle1 = (nextCandidates[1].Center - cell.Center).AngleInXY();
+                        Debug.WriteLine("{0}:  {1} {2} -- {3}", seedIndex, AbsAngleDifference(angle0, lastAngle), AbsAngleDifference(angle1, lastAngle), Math.Abs(angle1) < Math.Abs(angle0) && (nextCandidates[1].Center - cell.Center).Magnitude /* * Math.Cos(2 * (angle1 - lastAngle))*/ < circuitBoardBandPeriod);
+                        if (AbsAngleDifference(angle1, lastAngle) < AbsAngleDifference(angle0, lastAngle) && AbsAngleDifference(angle1, lastAngle) < maxBendAngle && (nextCandidates[1].Center - cell.Center).Magnitude / Math.Cos(2 * (angle1 - lastAngle)) < circuitBoardBandPeriod) {
+                            cell.Next = nextCandidates[1];
+                            lastAngle = angle1;
+                            cell = cell.Next;
+                            continue;
+                        }
+                    }
 
-                    if (cell.Next != null)
-                        lastAngle = AddInHelper.AngleBetween(Point.Origin - cell.Center, Point.Origin - cell.Next.Center);
+                    if (AbsAngleDifference(angle0, lastAngle) < maxBendAngle && (nextCandidates[0].Center - cell.Center).Magnitude / Math.Cos(2 * (angle0 - lastAngle)) < circuitBoardBandPeriod) {
+                        cell.Next = nextCandidates[0];
+                        lastAngle = angle0;
+                    }
 
                     cell = cell.Next;
                 }
             }
 
-            double totalLength = 0;
-            int lengthCount = 0;
+            Part mainPart = Window.ActiveWindow.Scene as Part;
+
             foreach (Cell cell in seeds) {
-                Cell thisCell = cell;
-                Cell previousCell = null;
-                Part mainPart = Window.ActiveWindow.Scene as Part;
                 Part part;
 
+                int length = 1;
+                Cell thisCell = cell;
                 while (thisCell.Next != null) {
-                    part = Part.Create(mainPart.Document, "unnumbered");
-                    thisCell.Component = Component.Create(mainPart, part);
+                    thisCell = thisCell.Next;
+                    length++;
+                }
 
-                    // CurveSegment.Create(thisCell.Center, thisCell.Next.Center).Print();
-                    totalLength += (thisCell.Center - thisCell.Next.Center).Magnitude;
-                    lengthCount++;
+                double angle;
 
-                    double angle = previousCell == null ?
-                        (thisCell.Center - thisCell.Next.Center).AngleInFrame(Frame.World) :
-                        ((previousCell.Center - thisCell.Center).Direction.UnitVector + (thisCell.Center - thisCell.Next.Center).Direction.UnitVector).AngleInFrame(Frame.World);
+                if (length == 1) {
+                    angle = cell.Center.Vector.AngleInXY();
+                    part = CreateRotatedInstanceWithPart(focusHeight, LedPart, mainPart, cell, angle);
+                    continue;
+                }
 
-                    thisCell.SeedComponent = CreateRotatedInstance(part, seedPart, thisCell.Center.Vector - focusHeight * Direction.DirZ, angle);
+                if (length == 2) {
+                    angle = (cell.Center - cell.Next.Center).AngleInXY();
+                    part = CreateRotatedInstanceWithPart(focusHeight, LedPart, mainPart, cell, angle);
+                    part = CreateRotatedInstanceWithPart(focusHeight, LedPart, mainPart, cell.Next, angle);
+                    continue;
+                }
 
+
+                angle = ((cell.Center - cell.Next.Center).Direction.UnitVector + (cell.Next.Center - cell.Next.Next.Center).Direction.UnitVector).AngleInXY();
+                angle = angle - 2 * (angle - (cell.Center - cell.Next.Center).AngleInXY());
+                part = CreateRotatedInstanceWithPart(focusHeight, LedPart, mainPart, cell, angle);
+
+                Cell previousCell = cell;
+                Cell previousPreviousCell = null;
+                thisCell = cell.Next;
+                while (thisCell.Next != null) {
+                    angle = ((previousCell.Center - thisCell.Center).Direction.UnitVector + (thisCell.Center - thisCell.Next.Center).Direction.UnitVector).AngleInFrame(Frame.World);
+                    part = CreateRotatedInstanceWithPart(focusHeight, LedPart, mainPart, thisCell, angle);
+                    previousPreviousCell = previousCell;
                     previousCell = thisCell;
                     thisCell = thisCell.Next;
                 }
 
-                part = Part.Create(mainPart.Document, "unnumbered");
-                thisCell.Component = Component.Create(mainPart, part);
-
-                if (previousCell == null)
-                    thisCell.SeedComponent = CreateRotatedInstance(part, seedPart, thisCell.Center.Vector - focusHeight * Direction.DirZ, thisCell.Center.Vector.AngleInFrame(Frame.World));
-                else
-                    thisCell.SeedComponent = CreateRotatedInstance(part, seedPart, thisCell.Center.Vector - focusHeight * Direction.DirZ, (previousCell.Center - thisCell.Center).AngleInFrame(Frame.World));
+                angle = ((thisCell.Center - previousCell.Center).Direction.UnitVector + (previousCell.Center - previousPreviousCell.Center).Direction.UnitVector).AngleInXY();
+                angle = angle - 2 * (angle - (thisCell.Center - previousCell.Center).AngleInXY()) + Math.PI;
+                part = CreateRotatedInstanceWithPart(focusHeight, LedPart, mainPart, thisCell, angle);
             }
 
             foreach (Cell cell in seeds) {
                 Cell thisCell = cell;
                 Cell previousCell = null;
                 while (thisCell.Next != null) {
-                    Matrix transStart = thisCell.SeedComponent.Placement;
-                    Matrix transEnd = thisCell.Next.SeedComponent.Placement;
+                    Matrix transStart = thisCell.LedComponent.Placement;
+                    Matrix transEnd = thisCell.Next.LedComponent.Placement;
                     NurbsCurve.CreateFromKnotPoints(false, new Point[] { transStart * circuitBendEndRight, transEnd * circuitBendStartRight }, transStart * circuitBendVector, transEnd * circuitBendVector).Print();
                     NurbsCurve.CreateFromKnotPoints(false, new Point[] { transStart * circuitBendEndLeft, transEnd * circuitBendStartLeft }, transStart * circuitBendVector, transEnd * circuitBendVector).Print();
-
                     previousCell = thisCell;
                     thisCell = thisCell.Next;
-
                 }
             }
+
 
             int printIndex = 0;
             foreach (Cell cell in seeds.OrderBy(c => c.Center.Vector.MagnitudeSquared())) {
                 Part part = cell.Component.Template;
                 part.Name = string.Format("Cell {0}", printIndex);
-
                 Point focus = cell.Center - Direction.DirZ * focusHeight;
                 ICollection<ITrimmedCurve> nominalPath = cell.Edges.Cast<ITrimmedCurve>().ToArray();
                 ICollection<ITrimmedCurve> insetPath = cell.Edges.Cast<ITrimmedCurve>().ToArray().OffsetTowards(cell.Center, Plane.PlaneXY, webWidth / 2);
@@ -371,73 +349,75 @@ namespace SpaceClaim.AddIn.AETools {
                 Body insetBody = Body.CreatePlanarBody(Plane.PlaneXY, insetPath);
                 if (printIndex++ > maxPrint)
                     continue;
-
                 Body lip = nominalBody.Copy();
                 lip.Subtract(new[] { insetBody.Copy() });
-
                 Body parabolas = ParabolaLoft(focusHeight, cell.Center, insetBody);
                 Body parabolaBottom = Body.CreatePlanarBody(
                     Plane.Create(Frame.Create(Point.Create(0, 0, -focusHeight), Direction.DirZ)),
                     parabolas.Edges.Where(edge => Accuracy.EqualLengths(edge.StartPoint.Z, -focusHeight)).ToArray()
                 );
-
                 Body outside = Body.ExtrudeProfile(Plane.PlaneXY, nominalPath, -focusMaterialThickness);
                 outside.DeleteFaces(outside.Faces.Where(f => Accuracy.EqualLengths(f.Loops.SelectMany(l => l.Vertices).Select(v => v.Position.Z).Average(), 0)).ToArray(), RepairAction.None);
-
                 var tracker = Tracker.Create();
                 Face[] newParabolas = parabolas.Faces.ToArray();
                 Face newParabolaBottom = parabolaBottom.Faces.First();
                 outside.Stitch(new[] { lip, parabolas, parabolaBottom }, Accuracy.LinearResolution * 100, tracker);
-
                 Body hole = ShapeHelper.CreateCylinder(cell.Center, cell.Center - Vector.Create(0, 0, focusMaterialThickness), circuitBoardLedHoleSize);
                 outside.Subtract(new[] { hole });
-
                 newParabolas = newParabolas.Select(f => tracker.GetSurvivors(f).First()).ToArray();
                 newParabolaBottom = tracker.GetSurvivors(newParabolaBottom).First();
-
                 desBody = DesignBody.Create(part, "Reflector", outside);
                 desBody.Layer = reflectorLayer;
-
-                BallMill smallerBall = BallMill.StandardSizes.Values.Where(b => Accuracy.EqualLengths( b.Radius * 2 , (double)3/16*inches)).First();
+                BallMill smallerBall = BallMill.StandardSizes.Values.Where(b => Accuracy.EqualLengths(b.Radius * 2, (double)3 / 16 * inches)).First();
                 var contouringParams = new CuttingParameters(smallerBall.Radius, 1, 0.25 * inches);
                 var bottommingParams = new CuttingParameters(smallerBall.Radius / 2, 1, 0.25 * inches);
-
                 foreach (Face face in newParabolas) {
                     var toolPath = new FaceToolPath(face, smallerBall, contouringParams, FaceToolPath.StrategyType.UV);
                     FaceToolPathObject.Create(desBody.Faces.Where(f => f.Shape == face).First(), toolPath, System.Drawing.Color.DarkCyan);
                 }
-
-              //  var bottommingToolPath = new SpiralFacingToolPath(newParabolaBottom, newParabolaBottom.Edges.Select(e => e.Faces.Where(f => f != newParabolaBottom).First()).ToArray(), smallerBall, bottommingParams);
+                //  var bottommingToolPath = new SpiralFacingToolPath(newParabolaBottom, newParabolaBottom.Edges.Select(e => e.Faces.Where(f => f != newParabolaBottom).First()).ToArray(), smallerBall, bottommingParams);
                 var bottommingToolPath = new FaceToolPath(newParabolaBottom, smallerBall, bottommingParams, FaceToolPath.StrategyType.Spiral);
                 FaceToolPathObject.Create(desBody.Faces.Where(f => f.Shape == newParabolaBottom).First(), bottommingToolPath, System.Drawing.Color.DarkOrange);
-
                 //   Body insideTop = ArcLoft(domeHeight, cell.Center, insetBody);
                 Matrix m = Matrix.CreateTranslation(Direction.DirZ * domeRootThickness);
-                Body outsideTop = ArcLoft(domeHeight - domeRootThickness, m * cell.Center, nominalBody.CreateTransformedCopy(m));
-
+                Body nominalBody2 = Body.CreatePlanarBody(Plane.PlaneXY, nominalPath);
+                Body outsideTop = ArcLoft(domeHeight - domeRootThickness, m * cell.Center, nominalBody2.CreateTransformedCopy(m));
                 Body blockTop = Body.ExtrudeProfile(Plane.PlaneXY, nominalPath, domeRootThickness);
                 //     var heights = outside.Faces.Select(f => f.Loops.SelectMany(l => l.Vertices).Select(v => v.Position.Z).Average()).ToArray();
                 blockTop.DeleteFaces(blockTop.Faces.Where(f => Accuracy.EqualLengths(f.Loops.SelectMany(l => l.Vertices).Select(v => v.Position.Z).Average(), domeRootThickness)).ToArray(), RepairAction.None);
                 // blockTop.DeleteFaces(blockTop.Faces.Where(f => Direction.Cross(Direction.DirZ, f.Geometry.Evaluate(PointUV.Origin).Normal).IsZero).ToArray(), RepairAction.None);
-
-              //  outsideTop.Fuse(new[] { blockTop }, true, null);
+                //  outsideTop.Fuse(new[] { blockTop }, true, null);
                 outsideTop.Stitch(new[] { blockTop }, Accuracy.LinearResolution * 10, null);
                 desBody = DesignBody.Create(part, "Lens", outsideTop);
                 desBody.Layer = lensLayer;
                 desBody.Style = BodyStyle.Transparent;
             }
-
             ICollection<ITrimmedCurve> outerPath = outerEdges.Cast<ITrimmedCurve>().ToArray().OffsetTowards(Point.Origin, Plane.PlaneXY, -webWidth / 2);
             outerPath.Print();
-
         }
 
+        private static Part CreateRotatedInstanceWithPart(double focusHeight, Part LedPart, Part mainPart, Cell cell, double angle) {
+            Part part;
+            part = Part.Create(mainPart.Document, string.Format("Cell {0}", cell.Index));
+            cell.Component = Component.Create(mainPart, part);
+            cell.LedComponent = CreateRotatedInstance(part, LedPart, cell.Center.Vector - focusHeight * Direction.DirZ, angle);
+            return part;
+        }
+#if true
+        public static double AbsAngleDifference(double angle1, double angle2) {
+            double val = Math.Abs(angle1 - angle2);
+            return val > Math.PI ? Const.Tau - val : val;
+        }
+#else
+        public static double AbsAngleDifference(double angle1, double angle2) {
+            return Math.Abs(((angle1 - angle2 + 4 * Math.PI) % (2 * Math.PI)) - Math.PI);
+        }
+#endif
         private static void CreateVoronoi(int count, List<Point> points, out Dictionary<VectorVoronoi, Cell> cells, out List<VectorVoronoi> vectors, out List<CurveSegment> outerEdges) {
             cells = new Dictionary<VectorVoronoi, Cell>();
             vectors = points.Select(p => new VectorVoronoi(new double[] { p.X, p.Y })).ToList();
             VoronoiGraph graph = Fortune.ComputeVoronoiGraph(vectors);
             vectors = vectors.Take(count).ToList();
-
             outerEdges = new List<CurveSegment>();
             //   List<CurveSegment> delauny = new List<CurveSegment>();
             foreach (VoronoiEdge edge in graph.Edges) {
@@ -447,41 +427,36 @@ namespace SpaceClaim.AddIn.AETools {
                     double.IsNaN(edge.VVertexB.X) ||
                     double.IsNaN(edge.VVertexB.Y)
                     )
-
                     continue;
-
                 int borderEdgeCount = 0;
-
                 if (vectors.Contains(edge.LeftData)) {
                     if (!cells.ContainsKey(edge.LeftData))
                         cells[edge.LeftData] = new Cell(Point.Create(edge.LeftData.X, edge.LeftData.Y, 0), vectors.IndexOf(edge.LeftData));
-
                     cells[edge.LeftData].AddVoironoiEdge(edge);
                     borderEdgeCount++;
                 }
-
                 if (vectors.Contains(edge.RightData)) {
                     if (!cells.ContainsKey(edge.RightData))
                         cells[edge.RightData] = new Cell(Point.Create(edge.RightData.X, edge.RightData.Y, 0), vectors.IndexOf(edge.RightData));
-
                     cells[edge.RightData].AddVoironoiEdge(edge);
                     borderEdgeCount++;
                 }
-
                 if (borderEdgeCount == 1) {
                     Point pA = Point.Create(edge.VVertexA.X, edge.VVertexA.Y, 0);
                     Point pB = Point.Create(edge.VVertexB.X, edge.VVertexB.Y, 0);
                     outerEdges.Add(CurveSegment.Create(pA, pB));
                 }
-
                 if (borderEdgeCount == 2) {
                     cells[edge.RightData].Neighbors.Add(cells[edge.LeftData]);
                     cells[edge.LeftData].Neighbors.Add(cells[edge.RightData]);
 
-
                     //         delauny.Add(CurveSegment.Create(cells[edge.RightData].Center, cells[edge.LeftData].Center));
                 }
             }
+
+            Cell[] orderedCells = cells.Values.OrderBy(c => c.Center.Vector.MagnitudeSquared()).ToArray();
+            for (int i = 0; i < orderedCells.Length; i++)
+                orderedCells[i].Index = i;
         }
 
         private static Component CreateRotatedInstance(Part MainPart, Part seedPart, Vector position, double angle) {
@@ -490,10 +465,8 @@ namespace SpaceClaim.AddIn.AETools {
                 Matrix.CreateTranslation(position) *
                 Matrix.CreateRotation(Frame.World.AxisZ, angle)
                 );
-
             return component;
         }
-
         private static Body ParabolaLoft(double focusHeight, Point center, Body insetBody) {
             List<ITrimmedCurve> parabolaCurves = new List<ITrimmedCurve>();
             List<Body> domeBodies = new List<Body>();
@@ -501,25 +474,20 @@ namespace SpaceClaim.AddIn.AETools {
             foreach (Fin fin in insetBody.Faces.First().Loops.First().Fins) {
                 const double loftResoluion = 0.002;
                 int loftCount = Math.Max((int)(fin.Edge.Length / loftResoluion), 2);
-
                 ITrimmedCurve[][] profiles = new ITrimmedCurve[loftCount][];
                 for (int i = 0; i < loftCount; i++) {
                     double t = (double)i / (loftCount - 1) * fin.Edge.Bounds.Span + fin.Edge.Bounds.Start;
                     CurveEvaluation eval = fin.Edge.Geometry.Evaluate(t);
                     Point insetCurvePoint = eval.Point - center.Vector;
-
                     Frame frame = Frame.Create(focus, -Direction.DirZ, insetCurvePoint.Vector.Direction);
                     Plane plane = Plane.Create(frame);
                     //   plane.Print();
                     Matrix trans = Matrix.CreateMapping(frame);
                     double x = insetCurvePoint.Vector.Magnitude;
-
                     //    CurveSegment.Create(frame.Origin, frame.Origin + insetCurvePoint.Vector).Print();
-
                     double r0 = Math.Sqrt(x * x + focusHeight * focusHeight);
                     double theta0 = Math.Atan2(x, -focusHeight);
                     double a = (double)-1 / 2 * r0 * (1 + Math.Cos(theta0));
-
                     int pointCount = 128;
                     Point[] parabolaPoints = new Point[pointCount];
                     for (int j = 0; j < pointCount; j++) {
@@ -527,18 +495,15 @@ namespace SpaceClaim.AddIn.AETools {
                         double r = (double)-2 * a / (1 + Math.Cos(theta));
                         parabolaPoints[j] = trans * Point.Create(r * Math.Cos(theta), r * Math.Sin(theta), 0);
                     }
-
                     //double radius = 0.125 * 0.0254;
                     //for (int j = 1; j < pointCount - 1; j++) {
                     //    Direction dir = -((parabolaPoints[j] - parabolaPoints[j - 1]).Direction.UnitVector + (parabolaPoints[j] - parabolaPoints[j + 1]).Direction.UnitVector).Direction;
                     //    Point toolCenter = parabolaPoints[j] + radius * dir;
                     //    CurveSegment.Create(toolCenter, toolCenter - Direction.DirZ * radius).Print();
                     //}
-
                     profiles[i] = new ITrimmedCurve[] { CurveSegment.Create(NurbsCurve.CreateThroughPoints(false, parabolaPoints, Accuracy.LinearResolution * 10)) };
                     //   profiles[i].Print();
                 }
-
 
                 Body body = Body.LoftProfiles(profiles, false, false);
                 domeBodies.Add(body);
@@ -549,26 +514,20 @@ namespace SpaceClaim.AddIn.AETools {
                         continue;
                     if (!Accuracy.LengthIsZero(edge.EndPoint.Z))
                         continue;
-
                     topEdge = edge;
                 }
-
                 Surface surface = face.Geometry;
                 UV<Parameterization> param = surface.Parameterization;
                 double startU = param.U.Bounds.Start.GetValueOrDefault();
                 double endU = param.U.Bounds.End.GetValueOrDefault();
                 double startV = param.V.Bounds.Start.GetValueOrDefault();
                 double endV = param.V.Bounds.End.GetValueOrDefault();
-
                 SurfaceEvaluation surfEval = surface.Evaluate(PointUV.Create((startU + endU) / 2, (startV + endV) / 2));
                 Double sign = Vector.Dot(surfEval.Normal.UnitVector, Direction.DirZ.UnitVector);
-
                 bool normalFlip = sign < 0; //face.IsReversed;
-
                 double vStep = 0.125 * 0.0254;
                 int vCount = (int)Math.Max(topEdge.Length / vStep, 2);
-           //     int uCount = 32;
-
+                //     int uCount = 32;
                 //for (int j = 0; j < vCount; j++) {
                 //    double v = startV + (double)j / (vCount - 1) * (endV - startV);
                 //    Point[] points = new Point[uCount];
@@ -579,7 +538,6 @@ namespace SpaceClaim.AddIn.AETools {
                 //        points[i] = eval.Point;
                 //        normals[i] = normalFlip ? -eval.Normal : eval.Normal;
                 //    }
-
                 //    double radius = 0.125 * 0.0254;
                 //    for (int i = 0; i < uCount; i++) {
                 //        Point toolCenter = points[i] + radius * normals[i];
@@ -587,7 +545,6 @@ namespace SpaceClaim.AddIn.AETools {
                 //    }
                 //}
             }
-
             // domeBodies.Print();
             Body targetBody = domeBodies[0];
             domeBodies.RemoveAt(0);
@@ -596,19 +553,15 @@ namespace SpaceClaim.AddIn.AETools {
                 domeBodies.RemoveAt(0);
                 targetBody.Fuse(new Body[] { toolBody }, true, null);
             }
-
             //  targetBody.Print();
             //  return domeBodies.TryStitchBodies().First();
             return targetBody;
         }
-
         private static Body ArcLoft(double domeHeight, Point center, Body insetBody) {
             List<Body> domeBodies = new List<Body>();
-
             foreach (Fin fin in insetBody.Faces.First().Loops.First().Fins) {
                 const double loftResoluion = 0.004;
                 int loftCount = Math.Max((int)(fin.Edge.Length / loftResoluion), 2);
-
                 ITrimmedCurve[][] profiles = new ITrimmedCurve[loftCount][];
                 for (int i = 0; i < loftCount; i++) {
                     double t = (double)i / (loftCount - 1) * fin.Edge.Bounds.Span + fin.Edge.Bounds.Start;
@@ -617,21 +570,16 @@ namespace SpaceClaim.AddIn.AETools {
                     Point apex = center + Direction.DirZ * domeHeight;
                     Frame domeFrame = Frame.Create(center, (insetCurvePoint - center).Direction, Direction.DirZ);
                     Plane plane = Plane.Create(domeFrame);
-
                     Line tangentLine = Line.Create(apex, domeFrame.AxisX.Direction);
                     Circle circle = Circle.CreateTangentToOne(plane, new CurveParam(tangentLine, 0), apex, insetCurvePoint);
-
                     double param0 = circle.ProjectPoint(center).Param;
                     double param1 = circle.ProjectPoint(insetCurvePoint).Param;
                     profiles[i] = new ITrimmedCurve[] { CurveSegment.Create(circle, Interval.Create(param1, param0)) };
                 }
-
                 domeBodies.Add(Body.LoftProfiles(profiles, false, false));
             }
-
             return domeBodies.TryStitchBodies().First();
         }
-
         private static Body RuledLoft(IList<ITrimmedCurve> curves) {
             Body[] bodies = new Body[curves.Count];
             for (int i = 0; i < curves.Count; i++)
@@ -639,26 +587,23 @@ namespace SpaceClaim.AddIn.AETools {
                     new ITrimmedCurve[] { curves[i] },
                     new ITrimmedCurve[] { curves[(i + 1) % curves.Count] }
                 }, false, false);
-
             return bodies.TryUnionBodies().First();
         }
-
         class Cell {
             public Point Center { get; set; }
             public Cell Next { get; set; }
+            public int VoronoiIndex { get; set; }
             public int Index { get; set; }
             public List<CurveSegment> Edges { get; set; }
             public List<Cell> Neighbors { get; set; }
             public Component Component { get; set; }
-            public Component SeedComponent { get; set; }
-
+            public Component LedComponent { get; set; }
             public Cell(Point center, int index) {
                 Center = center;
                 Edges = new List<CurveSegment>();
                 Neighbors = new List<Cell>();
-                Index = index;
+                VoronoiIndex = index;
             }
-
             public void AddVoironoiEdge(VoronoiEdge edge) {
                 Point pA = Point.Create(edge.VVertexA.X, edge.VVertexA.Y, 0);
                 Point pB = Point.Create(edge.VVertexB.X, edge.VVertexB.Y, 0);
@@ -666,84 +611,64 @@ namespace SpaceClaim.AddIn.AETools {
             }
         }
 
-
 #endif
-
 
 #if false // matrix interp two components
 		static void XXX_Executing(object sender, EventArgs e) {
 			Window activeWindow = Window.ActiveWindow;
 			List<IDocObject> selection = activeWindow.ActiveContext.Selection.ToList();
-
 			if (selection.Count != 2)
 				return;
-
 			Component a = selection[0] as Component;
 			Component b = selection[1] as Component;
-
 			if (a == null || b == null || a.Template != b.Template) 
 				return;
-
 			int steps = 10;
 			for (int i = 1; i < steps; i++) {
 				double t = (double) i / steps;
 				Component component = Component.Create(a.Parent, a.Template);
 				component.Placement = Interpolation.Interpolate(a.Placement, b.Placement, t);
 			}
-
 		}
 #endif
-
 #if false // Sphere Eversion
 		static void XXX_Executing(object sender, EventArgs e) {
 			Window activeWindow = Window.ActiveWindow;
 			List<Tope> topes = new List<Tope>();
-
 			string path = @"C:\Users\bcr\Documents\Models\Sphere Eversion\avn\h2d78.mov";
 			BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open));
-
 			string text;
 			while (true) {
 				text = reader.ReadLine();
 				if (text.Length >= 6 && text.Substring(0, 6) == "(exit)")
 					break;
-
 				if (text.Contains("OFF"))
 					topes.Add(new Tope(reader));
 			}
-
 			reader.Close();
-
 			Part mainPart = Window.ActiveWindow.Scene as Part;
 			//foreach (Point point in topes.First().verts)
 			//    DesignCurve.Create(mainPart, CurveSegment.Create(PointCurve.Create(point)));
-
 			int topeNum = 0;
 			Matrix rotation = Matrix.CreateRotation(Line.Create(Point.Origin, Direction.DirZ), Math.PI);
-
 			double diameter = 0.002;
 			List<Point> allPoints = new List<Point>();
 			foreach (Tope tope in topes) {
 				if (topeNum++ % 4 != 0)
 					continue;
-
 				Window window = Document.Create();
 				mainPart = window.Scene as Part;
-
 				Matrix scale = Matrix.CreateScale(3.5 * 25.4 / 5000);
 				Point[] verts = new Point[tope.nverts];
 				for (int i = 0; i < verts.Length; i++)
 					verts[i] = scale * tope.verts[i];
-
 				Part part = Part.Create(mainPart, string.Format("Tope {0:00}", (topeNum - 1) / 4));
 				Component component = Component.Create(mainPart, part);
-
 				var segments = new List<Segment>();
 				for (int i = 0; i < tope.nfaces; i++) {
 					var indices = new List<int>();
 					for (int j = 0; j < tope.nfv[i]; j++)
 						indices.Add(tope.fv[tope.fv0[i] + j]);
-
 					for (int j = 0; j < indices.Count; j++) {
 						int a = indices[j];
 						int b = indices[(j + 1) % indices.Count];
@@ -752,9 +677,7 @@ namespace SpaceClaim.AddIn.AETools {
 							segments.Add(segment);
 					}
 				}
-
 				var bodies = new List<Body>();
-
 				//Part topeContainer = Part.Create(part, "TopeHolder");
 				//Component topeComponent = Component.Create(part, topeContainer);
 				//topeComponent.Transform(Matrix.CreateTranslation(Vector.Create(0, 0, 0)));
@@ -763,10 +686,8 @@ namespace SpaceClaim.AddIn.AETools {
 					Point pointA = verts[segment.Item1].Quantify();
 					Point pointB = verts[segment.Item2].Quantify();
 					bodies.Add(ShapeHelper.CreateCylinder(pointA, pointB, diameter));
-
 					allPoints.Add(pointA);
 					allPoints.Add(pointB);
-
 					pointA = (rotation * pointA).Quantify();
 					pointB = (rotation * pointB).Quantify();
 					bool isMatching = false;
@@ -774,14 +695,11 @@ namespace SpaceClaim.AddIn.AETools {
 						if ((PointsAreClose(pointA, verts[otherSegment.Item1]) && PointsAreClose(pointB, verts[otherSegment.Item2])) || (PointsAreClose(pointA, verts[otherSegment.Item2]) && PointsAreClose(pointB, verts[otherSegment.Item1])))
 							isMatching = true;
 					}
-
 					allPoints.Add(pointA);
 					allPoints.Add(pointB);
 
-
 					if (!isMatching)
 						bodies.Add(ShapeHelper.CreateCylinder(pointA, pointB, diameter));
-
 
 					DesignCurve desCurve = DesignCurve.Create(mainPart, CurveSegment.Create(verts[segment.Item1], verts[segment.Item2]));
 					desCurves.Add(desCurve);
@@ -789,32 +707,25 @@ namespace SpaceClaim.AddIn.AETools {
 					desCurve.Transform(rotation);
 					desCurves.Add(desCurve);
 				}
-
 				//Box box = Box.Empty;
 				//box |= Box.Create(desCurves.Select(b => b.Shape).Select(s => s.StartPoint).ToArray());
 				//box |= Box.Create(desCurves.Select(b => b.Shape).Select(s => s.EndPoint).ToArray());
 				//box = box.Inflate(diameter / 2);
 				//GenerateKizamuInputData(desCurves, diameter, box);
-
 				//foreach (Point point in verts)
 				//    bodies.Add(ShapeHelper.CreateSphere(point, diameter));
-
 				foreach (Body body in bodies) {
 					DesignBody desbody = DesignBody.Create(part, "tope", body);
 				}
-
 				mainPart.Document.SaveAs(string.Format(@"c:\tope {0:00}.1.scdoc", (topeNum - 1) / 4));
 				window.Delete();
-
 				break;
 			}
 		}
 		//	ShapeHelper.CreateBlock(Box.Create(allPoints).Inflate(diameter / 2), mainPart);
 
-
 		public static void GenerateKizamuInputData(IList<DesignCurve> desCurves, double diameter, Box box) {
 			StreamWriter writer = new StreamWriter(@"C:\Users\bcr\Desktop\EversionTest1.txt");
-
 			writer.WriteLine("// Set the generation and rendering attributes");
 			writer.WriteLine("set dimension 3");
 			writer.WriteLine("set minLevel 0");
@@ -825,10 +736,8 @@ namespace SpaceClaim.AddIn.AETools {
 			writer.WriteLine("set euclidean 1");
 			writer.WriteLine("set renderAsSurface 1");
 			writer.WriteLine("set imageSize 1024");
-
 			double maxSize = Math.Max(Math.Max(box.Size.X, box.Size.Y), box.Size.Z);
 			Matrix trans = Matrix.CreateScale(1 / maxSize) * Matrix.CreateTranslation(-box.MinCorner.Vector);
-
 			var objectNames = new List<string>();
 			string objectName;
 			for (int i = 0; i < desCurves.Count; i++) {
@@ -840,19 +749,14 @@ namespace SpaceClaim.AddIn.AETools {
 					desCurves[i].Shape.EndPoint.X, desCurves[i].Shape.EndPoint.Y, desCurves[i].Shape.EndPoint.Z,
 					diameter / 2 / maxSize)
 				);
-
 				objectNames.Add(objectName);
 			}
-
 			foreach (string str in objectNames)
 				writer.WriteLine(String.Format("command push {0}", str));
-
 			for (int i = 0; i < objectNames.Count - 1; i++)
 				writer.WriteLine("command add");
-
 			writer.Close();
 		}
-
 		public static Point Quantify(this Point point) {
 			const int quantization = 6;
 			return Point.Create(
@@ -861,7 +765,6 @@ namespace SpaceClaim.AddIn.AETools {
 				Math.Round(point.Z, quantization)
 			);
 		}
-
 		public static bool PointsAreClose(Point pointA, Point pointB) {
 			return
 				(pointA.X - pointB.X) * (pointA.X - pointB.X) +
@@ -870,7 +773,6 @@ namespace SpaceClaim.AddIn.AETools {
 				(Accuracy.LinearResolution * 10000) * (Accuracy.LinearResolution * 10000) < 0;
 		}
 
-
 		class Tope {
 			public int nverts { get; set; }
 			public Point[] verts { get; set; }
@@ -878,14 +780,11 @@ namespace SpaceClaim.AddIn.AETools {
 			public int[] nfv { get; set; }		/* nfv[nfaces] : number of verts on each face */
 			public int[] fv0 { get; set; }		/* fv0[nfaces] : starting index in fv[] */
 			public List<int> fv { get; set; }		/* fv[totfv] : vertex indices per face */
-
 			public Tope(BinaryReader reader) {
 				nverts = reader.ReadBigEndianInt();
 				nfaces = reader.ReadBigEndianInt();
 				reader.ReadBigEndianInt();
-
 				Debug.Assert(!(nverts < 0 || nverts > 100000000 || nfaces < 0 || nfaces > 100000000), "Looks like wrong number of verts and faces.");
-
 				verts = new Point[nverts];
 				for (int i = 0; i < nverts; i++)
 					verts[i] = Point.Create(
@@ -893,93 +792,66 @@ namespace SpaceClaim.AddIn.AETools {
 						(double) reader.ReadBigEndianFloat(),
 						(double) reader.ReadBigEndianFloat()
 						);
-
 				nfv = new int[nfaces];
 				fv0 = new int[nfaces];
 				fv = new List<int>();
-
 				for (int i = 0; i < nfaces; i++) {
 					int numFaceVerts = reader.ReadBigEndianInt();
 					Debug.Assert(!(numFaceVerts <= 0 || numFaceVerts > 100000), "Unreasonable number of verts (%d) on face %d of tope %d (file offset %d)\n");
-
 					nfv[i] = numFaceVerts;
 					fv0[i] = fv.Count;
-
 					for (int k = 0; k < numFaceVerts; k++)
 						fv.Add(reader.ReadBigEndianInt());
-
 					int numColorComponents = reader.ReadBigEndianInt(); //color size
 					for (int k = 0; k < numColorComponents; k++)
 						reader.ReadBigEndianFloat(); //throw it away
-
 				}
-
 			}
 		}
-
 		class Segment : IComparable<Segment>, IEqualityComparer<Segment>, IEquatable<Segment> {
 			public int Item1 { get; set; }
 			public int Item2 { get; set; }
-
 			public Segment(int a, int b) {
 				this.Item1 = a;
 				this.Item2 = b;
 			}
-
 			public static Segment Create(int a, int b) {
 				return new Segment(a, b);
 			}
-
         #region IComparable Members
-
 			public int CompareTo(Segment other) {
 				if (Item1 < other.Item1)
 					return -1;
-
 				if (Item1 > other.Item1)
 					return 1;
-
 				if (Item2 < other.Item2)
 					return -1;
-
 				if (Item2 > other.Item2)
 					return 1;
-
 				return 0;
 			}
-
         #endregion
-
         #region IEqualityComparer<Tuple> Members
-
 			public bool Equals(Segment x, Segment y) {
 				return x.Item1 == y.Item1 && x.Item2 == y.Item2;
 			}
-
 			public int GetHashCode(Segment obj) {
 				return obj.Item1.GetHashCode() ^ obj.Item2.GetHashCode();
 			}
-
         #endregion
-
         #region IEquatable<Tuple> Members
-
 			public bool Equals(Segment other) {
 				return Equals(this, other);
 			}
-
         #endregion
 		}
 #endif
-
 
 #if false
 		static void XXX_Executing(object sender, EventArgs e) {
 			//ITrimmedCurve iTrimmedCurve = (Window.ActiveWindow.ActiveContext.SingleSelection as DesignCurve).Shape;
 			//DesignCurve.Create(Window.ActiveWindow.ActiveContext.ActivePart, iTrimmedCurve.CreateHelixAroundCurve(20, 0.05, 10000));
-
 			//return;
-
 			var primaryPoints = new List<Point>();
 			double length = 1;
 			double primaryTurns = 4;
@@ -988,28 +860,22 @@ namespace SpaceClaim.AddIn.AETools {
 			double secondaryRadius = 0.08;
 			double tertiaryTurns = 10 * secondaryTurns;
 			double tertiaryRadius = 0.02;
-
 			Line axis = Line.Create(Point.Origin, Direction.DirZ);
 			int count = 10000;
 			for (int i = 0; i < count; i++) {
 				double ratio = (double)i / count;
 				Point point = Point.Create(primaryRadius, 0, length * ratio);
 				Frame frame = Frame.Create(point, Direction.DirX, Direction.DirY);  // TBD should be angled
-
 				Matrix primaryRotation = Matrix.CreateRotation(axis, 2 * Math.PI * primaryTurns * ratio);
 				point = primaryRotation * point;
 				frame = primaryRotation * frame;
-
 				primaryPoints.Add(point);
 			}
-
 			CurveSegment curveSegment = CurveSegment.Create(NurbsCurve.CreateFromKnotPoints(false, primaryPoints));
 			curveSegment = CreateHelixAroundCurve(curveSegment, secondaryTurns, secondaryRadius, count);
 			curveSegment = CreateHelixAroundCurve(curveSegment, tertiaryTurns, tertiaryRadius, count);
 			DesignCurve.Create(Window.ActiveWindow.ActiveContext.ActivePart, curveSegment);
-
 		}
-
 	//{
 			//var points = new List<Point>();
 			//double length = 1;
@@ -1019,54 +885,41 @@ namespace SpaceClaim.AddIn.AETools {
 			//double secondaryRadius = 0.08;
 			//double tertiaryTurns = 10 * secondaryTurns;
 			//double tertiaryRadius = 0.02;
-
 			//Line axis = Line.Create(Point.Origin, Direction.DirZ);
 			//int count = 10000;
 			//for (int i = 0; i < count; i++) {
 			//    double ratio = (double)i / count;
 			//    Point point = Point.Create(primaryRadius, 0, length * ratio);
 			//    Frame frame = Frame.Create(point, Direction.DirX, Direction.DirY);  // TBD should be angled
-
 			//    Matrix primaryRotation = Matrix.CreateRotation(axis, 2 * Math.PI * primaryTurns * ratio);
 			//    point = primaryRotation * point;
 			//    frame = primaryRotation * frame;
-
 			//    Matrix secondaryRotation = Matrix.CreateRotation(Line.Create(point, frame.DirY), 2 * Math.PI * secondaryTurns * ratio);
 			//    point += frame.DirX * secondaryRadius;
 			//    point = secondaryRotation * point;
 			//    frame = secondaryRotation * frame;
-
 			//    Matrix tertiaryRotation = Matrix.CreateRotation(Line.Create(point, frame.DirY), 2 * Math.PI * tertiaryTurns * ratio);
 			//    point += frame.DirX * tertiaryRadius;
 			//    point = tertiaryRotation * point;
 			//    frame = tertiaryRotation * frame;
-
 			//    points.Add(point);
 			//}
-
 			//DesignCurve.Create(Window.ActiveWindow.ActiveContext.ActivePart, CurveSegment.Create(NurbsCurve.CreateThroughPoints(false, points, 0.000001)));
-
 		}
 #elif false
 		static double XSquared(double x) {
 			return x * x;
 		}
-
 		static void XXX_Executing(object sender, EventArgs e) {
-
 	
-
 		double x = MathHelper.IntegrateSimple(0,1,100, XSquared);
-
 
 			OpenFileDialog fileDialog = new OpenFileDialog();
 			fileDialog.Filter = "Mapgen dat files (*.dat.txt)|*.dat.txt";
 			fileDialog.Title = "Open Mapgen data";
 			if (fileDialog.ShowDialog(SpaceClaim.Api.V10.Application.MainWindow) != DialogResult.OK)
 				return;
-
 			StreamReader file = File.OpenText(fileDialog.FileName);
-
 			string line;
 			string regexp = @"([-\d\.]+)\s+([-\d\.]+)";
 			var profiles = new List<List<Point>>();
@@ -1078,7 +931,6 @@ namespace SpaceClaim.AddIn.AETools {
 				if (match.Success) {
 					if (!double.TryParse(match.Groups[1].Value, out lon))
 						continue;
-
 					if (!double.TryParse(match.Groups[2].Value, out lat))
 						continue;
 				}
@@ -1091,17 +943,14 @@ namespace SpaceClaim.AddIn.AETools {
 					else
 						Debug.Fail("Unhandled line: \n" + line);
 				}
-
 				lat *= Math.PI / 180;
 				lon *= Math.PI / 180;
-
 				profiles[profiles.Count - 1].Add(Point.Create(
 					Math.Cos(lon) * Math.Cos(lat),
 					Math.Sin(lon) * Math.Cos(lat),
 					Math.Sin(lat)
 				));
 			}
-
 			Part part = Window.ActiveWindow.Scene as Part;
 			
 			Body body = null;
@@ -1109,26 +958,19 @@ namespace SpaceClaim.AddIn.AETools {
 				body = designBody.Shape;
 				break;
 			}
-
 			var faceCurves = new Dictionary<DesignCurve, Face>();
 			FlatPattern flatPattern = new FlatPattern(body, null, false, true, "Flat Pattern");
 			flatPattern.Render();
-
 			string etchingLayerName = "Etching";
 			System.Drawing.Color etchingLayerColor = System.Drawing.Color.FromArgb(255, 0, 255);
-
 			profiles = profiles.CloseProfiles();
-
 			int count = 0;
 			foreach (List<Point> profile in profiles) {
 				var cleanProfile = profile.CleanProfile(0.01);
-
 				if (cleanProfile.Count < 3)
 					continue;
-
 				if (cleanProfile[0] != cleanProfile[cleanProfile.Count - 1])
 					cleanProfile.Add(cleanProfile[0]);
-
 				etchingLayerName = count.ToString();
 				Random random = new Random(count);
 				etchingLayerColor = System.Drawing.Color.FromArgb(
@@ -1136,27 +978,22 @@ namespace SpaceClaim.AddIn.AETools {
 					random.Next(200),
 					random.Next(200)
 				);
-
 				for (int i = 0; i < cleanProfile.Count - 1; i++) {
 					Point? p0 = null, p1 = null;
 					Face face = TryProjectPointsToBodyFace(body, cleanProfile[i], cleanProfile[i + 1], out p0, out p1, false);
-
 					if (p0 == null || p1 == null) {
 						Matrix scale = Matrix.CreateScale(0.001);
-
 						Body cutter = ShapeHelper.CreatePolygon(new Point[] {
 			                        cleanProfile[i],
 			                        cleanProfile[i + 1],
 			                        scale * cleanProfile[i + 1],
 			                        scale * cleanProfile[i]
 			                    }, 0);
-
 						cutter.Imprint(body.Copy());
 						foreach (Edge edge in cutter.Edges) {
 							if (edge.Fins.Count == 2) {
 								//DesignCurve desCurve = DesignCurve.Create(part, edge);
 								//desCurve.Layer = NoteHelper.CreateOrGetLayer(Window.ActiveWindow.Document, "Etching-sibs", System.Drawing.Color.Purple);
-
 								Face imprintFace = TryProjectPointsToBodyFace(body, edge.StartPoint, edge.EndPoint, out p0, out p1, true);
 								Matrix imprintTransform = flatPattern.FlatFaceMapping[imprintFace].Transform;
 								CreateTransformedDesignCurveOnLayer(part, edge.StartPoint, edge.EndPoint, Matrix.Identity /* imprintTransform */, "Etching-sibs", System.Drawing.Color.Purple);
@@ -1171,7 +1008,6 @@ namespace SpaceClaim.AddIn.AETools {
 			}
 		}
 		/////////////////////////////////
-
 #endif
 #if false	
 							else if (lastFace != null && face != lastFace) {
@@ -1184,24 +1020,19 @@ namespace SpaceClaim.AddIn.AETools {
 									if (p0 == null) {
 										facePoint = p1;
 										otherProfilePoint = cleanProfile[i];
-
 										intersections = face.Geometry.IntersectCurve(Line.Create(Point.Origin, cleanProfile[i].Vector.Direction));
 										if (intersections.Count > 0)
 											p0 = intersections.ToArray()[0].Point;
 									}
-
 									if (p1 == null) {
 										facePoint = p0;
 										otherProfilePoint = cleanProfile[i + 1];
-
 										intersections = face.Geometry.IntersectCurve(Line.Create(Point.Origin, cleanProfile[i + 1].Vector.Direction));
 										if (intersections.Count > 0)
 											p1 = intersections.ToArray()[0].Point;
 									}
-
 									intersections = lastFace.Geometry.IntersectCurve(Line.Create(Point.Origin, otherProfilePoint.Value.Vector.Direction));
 									Debug.Assert(intersections.Count > 0);
-
 									Point otherPoint = intersections.ToArray()[0].Point;
 									Matrix otherTransform = flatPattern.FlatFaceMapping[lastFace].Transform;
 									facePoint = otherTransform * facePoint;
@@ -1213,13 +1044,10 @@ namespace SpaceClaim.AddIn.AETools {
 #endif
         //	count++;
         //		}
-
         //	}
-
 
         //var nurbsCurve = NurbsCurve.CreateThroughPoints(false, cleanProfile, 10);
         //DesignCurve.Create(Window.ActiveWindow.Scene as Part, CurveSegment.Create(nurbsCurve));
-
         //	const double scale = 0.001;
         //ShapeHelper.CreatePolygon(new Point[] {
         //    profile[i],
@@ -1228,100 +1056,77 @@ namespace SpaceClaim.AddIn.AETools {
         //    Matrix.CreateScale(scale, Point.Origin) * profile[i]
         //}, 0, Window.ActiveWindow.Scene as Part);
         //}
-
         //IList<IDesignCurve> designCurves = ShapeHelper.CreatePolygon(profile, Window.ActiveWindow.Scene as Part);
         //if (designCurves != null)
         //    designCurves[designCurves.Count - 1].Delete();
-
 
 #if false // beams
 			//ICollection<Beam> beams = Window.ActiveWindow.ActiveContext.GetSelection<Beam>();
 			ICollection<Beam> beams = (Window.ActiveWindow.Scene as Part).Beams;
 			IPart part = Window.ActiveWindow.ActiveContext.ActivePart;
-
 			//temp
-
 			foreach (IDesignCurve iDesignCurve in part.Curves) {
 				Ellipse ellipse = iDesignCurve.Shape.ProjectToPlane(Plane.PlaneXY).Geometry as Ellipse;
 				if (ellipse != null) 
 					DesignCurve.Create(part, CurveSegment.Create(ellipse));
 			}
 
-
 			return;
 			//end temp
-
 			foreach (Beam beam in beams) {
 				DesignCurve.Create(part, beam.Shape);
 			//	Matrix trans = Matrix.CreateMapping(beam.SectionAnchor.
-
 				foreach (ICollection<ITrimmedCurve> profile in beam.SectionProfile) {
 					foreach (ITrimmedCurve iTrimmedCurve in profile) {
 						DesignCurve.Create(part, iTrimmedCurve);
 					}
 				}
-
 				//Frame profileFrame = Frame.Create(point1, dirX, dirY);
 				//Plane profilePlane = Plane.Create(profileFrame);
-
 				//IList<ITrimmedCurve> profile = new List<ITrimmedCurve>();
-
 				//Line axisLine = Line.Create(point1, dirX);
 				//profile.Add(CurveSegment.Create(axisLine, Interval.Create(-radius, lengthVector.Magnitude + radius)));
-
 				//Circle circle1 = Circle.Create(profileFrame, radius);
 				//profile.Add(CurveSegment.Create(circle1, Interval.Create(Math.PI / 2, Math.PI)));
-
 				//Line tangentLine = Line.Create(Matrix.CreateTranslation(dirY * radius) * point1, dirX);
 				//profile.Add(CurveSegment.Create(tangentLine, Interval.Create(0, lengthVector.Magnitude)));
-
 				//Circle circle2 = Circle.Create(Frame.Create(point2, dirX, dirY), radius);
 				//profile.Add(CurveSegment.Create(circle2, Interval.Create(0, Math.PI / 2)));
-
 				//IList<ITrimmedCurve> path = new List<ITrimmedCurve>();
 				//Circle sweepCircle = Circle.Create(Frame.Create(point1, dirY, dirZ), radius);
 				//path.Add(CurveSegment.Create(sweepCircle, sweepCircle.Parameterization.Range.Value));
-
 				//Body body = Body.SweepProfile(Plane.Create(profileFrame), profile, path);
 				//if (body == null) {
 				//    Debug.Fail("Profile was not connected, not closed, or swept along an inappropriate path.");
 				//    return null;
 				//}
-
 				//DesignBody desBodyMaster = DesignBody.Create(part.Master, "Sausage", body);
 				//desBodyMaster.Transform(part.TransformToMaster);
 				//return desBodyMaster;
 			}
 #endif
-
 #if false // Puzzle solving
 			Window activeWindow = Window.ActiveWindow;
 			Part mainPart = activeWindow.Scene as Part;
 			if (mainPart == null)
 				return;
-
 			Part brickPart = null;
 			Part assyPart = null;
 			foreach (Component component in mainPart.Components) {
 				if (component.Template.Name == "Brick")
 					brickPart = component.Template;
-
 				if (component.Template.Name == "Assy")
 					assyPart = component.Template;
 			}
-
 			Debug.Assert(brickPart != null);
 			Debug.Assert(assyPart != null);
-
 			Body brickBody = null;
 			foreach (DesignBody desBody in brickPart.Bodies) {
 				brickBody = desBody.Shape;
 				break;
 			}
-
 			Matrix trans = Matrix.CreateRotation(Line.Create(Point.Origin, Direction.DirZ), Math.PI / 2) *
 							Matrix.CreateRotation(Line.Create(Point.Origin, Direction.DirY), Math.PI / 2);
-
 			double stepSize = 0.01;
 			Line twistAxis = Line.Create(Point.Create(0, stepSize, stepSize), Direction.DirX);
 	//		DesignCurve.Create(mainPart, CurveSegment.Create(twistAxis, Interval.Create(0, 0.1)));
@@ -1331,40 +1136,31 @@ namespace SpaceClaim.AddIn.AETools {
 						Body body1 = brickBody.Copy();
 						body1.Transform(Matrix.CreateRotation(twistAxis, (double)r * Math.PI / 2));
 						body1.Transform(Matrix.CreateTranslation(Vector.Create(0, (double)i * stepSize, (double)j * stepSize)));
-
 						Body body2 = body1.Copy();
 						body2.Transform(trans);
-
 						ICollection<Body> mergedBodies = new Body[] { body1, body2 }.TryUnionBodies();
 						if (mergedBodies.Count == 2) {
 							Part topPart = Part.Create(mainPart, string.Format("r{0}: ({1}, {2})", r, i, j));
 							Component topComponent = Component.Create(mainPart, topPart);
-
 							Part fourBrickPart = Part.Create(mainPart, "four");
 							Component.Create(topPart, fourBrickPart);
 							Component.Create(topPart, fourBrickPart).Transform(trans);
 							Component.Create(topPart, fourBrickPart).Transform(trans.Inverse);
-
 							Part twoBrickPart = Part.Create(mainPart, "two");
 							Component.Create(fourBrickPart, twoBrickPart);
 							Component.Create(fourBrickPart, twoBrickPart).Transform(Matrix.CreateRotation(Line.Create(Point.Origin, Direction.DirZ), Math.PI));
-
 							Part brickPartNew = Part.Create(mainPart, "brick");
 							Component.Create(twoBrickPart, brickPartNew);
 							Component.Create(twoBrickPart, brickPartNew).Transform(Matrix.CreateRotation(Line.Create(Point.Origin, Direction.DirX), Math.PI));
-
 							foreach (Body body in mergedBodies) {
 								DesignBody.Create(brickPartNew, "Solution", body);
 								break;
 							}
 						}
-
 					}
 				}
 			}
 #endif
-
-
 
 
         private static Face TryProjectPointsToBodyFace(Body body, Point i1, Point i2, out Point? p0, out Point? p1, bool isRequiringThatBothPointsProject) {
@@ -1372,17 +1168,14 @@ namespace SpaceClaim.AddIn.AETools {
             foreach (Face face in body.Faces) {
                 CurveSegment ray;
                 ICollection<IntPoint<SurfaceEvaluation, CurveEvaluation>> intersections;
-
                 ray = CurveSegment.Create(Point.Origin, i1);
                 intersections = face.IntersectCurve(ray);
                 if (intersections.Count > 0)
                     p0 = intersections.ToArray()[0].Point;
-
                 ray = CurveSegment.Create(Point.Origin, i2);
                 intersections = face.IntersectCurve(ray);
                 if (intersections.Count > 0)
                     p1 = intersections.ToArray()[0].Point;
-
                 if (isRequiringThatBothPointsProject) {
                     if (p0 != null && p1 != null)
                         return face;
@@ -1392,30 +1185,24 @@ namespace SpaceClaim.AddIn.AETools {
                         return face;
                 }
             }
-
             return null;
         }
-
         private static DesignCurve CreateTransformedDesignCurveOnLayer(Part part, Point? p0, Point? p1, Matrix transform, string layerName, System.Drawing.Color color) {
             p0 = transform * p0;
             p1 = transform * p1;
-
             DesignCurve desCurve = null;
             if (p0 == p1)
                 desCurve = DesignCurve.Create(part, p0.Value.AsITrimmedCurve());
             else
                 desCurve = DesignCurve.Create(part, CurveSegment.Create(p0.Value, p1.Value));
-
             desCurve.Layer = NoteHelper.CreateOrGetLayer(part.Document, layerName, color);
             return desCurve;
         }
-
         static bool TryBuildC2NurbsData(CurveSegment curve, bool isReversed, double scale, out List<Knot> knots, out List<ControlPoint> controlPoints) {
             knots = new List<Knot>();
             controlPoints = new List<ControlPoint>();
             const int steps = 4;
             scale /= Math.Pow(2, steps) - 1;
-
             List<double> evalParams = new List<double>();
             double t = 0;
             for (int i = 0; i <= steps * 3 + 1; i++) {
@@ -1423,35 +1210,27 @@ namespace SpaceClaim.AddIn.AETools {
                 evalParams.Add(t);
             }
             evalParams.Reverse();
-
             CurveEvaluation curveEvaluation = null;
             for (int i = 0; i < evalParams.Count; i++) {
                 curveEvaluation = curve.Geometry.Evaluate(evalParams[i]);
                 if (i % 3 == 0)
                     knots.Add(new Knot((double)i / 3, 3));
-
                 controlPoints.Add(new ControlPoint(curveEvaluation.Point, 1));
                 DesignCurve.Create(Window.ActiveWindow.Scene as Part, CurveSegment.Create(curveEvaluation.Point, Point.Create(0.01, 0.01, 0)));
             }
-
             //Debug.Assert(curve.Geometry.TryOffsetAlongCurve(curve.Bounds.Min, - scale * 6, out t));
             //curveEvaluation = curve.Geometry.Evaluate(t);
             //controlPoints.Add(new ControlPoint(curveEvaluation.Point, 1));
             //DesignCurve.Create(Window.ActiveWindow.Scene as Part, CurveSegment.Create(curveEvaluation.Point, Point.Create(0.01, 0.01, 0)));
-
             return true;  // TBD, gather the assert above
         }
-
         static void Curves_Executing(object sender, EventArgs e) {
             const double inches = 25.4 / 1000;
 #if true
-
             ITrimmedCurve[] curves = Window.ActiveWindow.GetAllSelectedITrimmedCurves().ToArray();
             if (curves.Length != 2)
                 Debug.Fail("Need exactly two curves");
-
             ITrimmedCurve curve0 = curves[0], curve1 = curves[1];
-
 
             Point curve1StartPoint = curve1.StartPoint;
             Point curve1EndPoint = curve1.EndPoint;
@@ -1459,7 +1238,6 @@ namespace SpaceClaim.AddIn.AETools {
                 curve1StartPoint = curve1.EndPoint;
                 curve1EndPoint = curve1.StartPoint;
             }
-
             int uSteps = 7, vSteps = 17;
             double tentHeight = 0.125 * inches;
             Point[,] mesh = new Point[uSteps, vSteps];
@@ -1474,26 +1252,20 @@ namespace SpaceClaim.AddIn.AETools {
                         (1 - uRatio) * vRatio * curve0.EndPoint.Vector +
                         uRatio * (1 - vRatio) * curve1StartPoint.Vector +
                         (1 - uRatio) * (1 - vRatio) * curve1EndPoint.Vector;
-
                     mesh[i, j].Print();
                 }
             }
-
             double targetLength = (double)1 / 60 / 2;
             double elasticity = 0;// 0.25;
             double elasticityZ = -0.00005;
             double uSpring = 0.0004;
-         //   double vSpring = 0.0003;
+            //   double vSpring = 0.0003;
             double vTangency = 0.15;
             double vSquare = 0.2;
-
             double targetUSpacing = curve0.Length / (uSteps - 1);
             double targetVSpacing = targetLength / (vSteps - 1);
-
             Plane plane = Plane.Create(Frame.Create(curve0.StartPoint, Direction.DirZ));
-
             Point[,] newMesh = new Point[uSteps, vSteps];
-
             ITrimmedCurve[][] loftCurves = new ITrimmedCurve[uSteps][];
             for (int n = 0; n < 99; n++) {
                 loftCurves = new ITrimmedCurve[uSteps][];
@@ -1502,105 +1274,78 @@ namespace SpaceClaim.AddIn.AETools {
                     Point[] points = new Point[vSteps];
                     for (int j = 0; j < vSteps; j++) {
                         double vRatio = (double)j / (vSteps - 1);
-
                         Vector force = Vector.Zero;
                         if (i + 1 < uSteps)
                             force += (elasticity * (mesh[i, j] - mesh[i + 1, j]) + elasticityZ * Direction.DirZ) * (targetUSpacing / (mesh[i, j] - mesh[i + 1, j]).Magnitude - 1);
-
                         if (i != 0)
                             force += (elasticity * (mesh[i, j] - mesh[i - 1, j]) + elasticityZ * Direction.DirZ) * (targetUSpacing / (mesh[i, j] - mesh[i - 1, j]).Magnitude - 1);
-
                         if (j + 1 < vSteps)
                             force += (elasticity * (mesh[i, j] - mesh[i, j + 1]) + elasticityZ * Direction.DirZ) * (targetVSpacing / (mesh[i, j] - mesh[i, j + 1]).Magnitude - 1);
-
                         if (j != 0)
                             force += (elasticity * (mesh[i, j] - mesh[i, j - 1]) + elasticityZ * Direction.DirZ) * (targetVSpacing / (mesh[i, j] - mesh[i, j - 1]).Magnitude - 1);
-
                         if (i == 2 && j == 6) {
                             Console.WriteLine((targetVSpacing / (mesh[i, j] - mesh[i, j + 1]).Magnitude - 1));
                             Console.WriteLine((targetVSpacing / (mesh[i, j] - mesh[i, j - 1]).Magnitude - 1));
                         }
-
                         if (i + 1 < uSteps && i != 0)
                             force -= uSpring * ((mesh[i, j].Vector - mesh[i + 1, j].Vector).Direction.UnitVector + (mesh[i, j].Vector - mesh[i - 1, j].Vector).Direction.UnitVector);
-
                         //if (j + 1 < vSteps && j != 0)
                         //    force -= vSpring * ((mesh[i, j].Vector - mesh[i, j + 1].Vector).Direction.UnitVector + (mesh[i, j].Vector - mesh[i, j - 1].Vector).Direction.UnitVector);
-
                         if (j == 1 || j == vSteps - 2)
                             force += vTangency * (mesh[i, j].ProjectToPlane(plane) - mesh[i, j]);
-
                         if (j == 2 || j == vSteps - 3)
                             force += vTangency / 2 * (mesh[i, j].ProjectToPlane(plane) - mesh[i, j]);
-
                         if (j == 3 || j == vSteps - 4)
                             force += vTangency / 4 * (mesh[i, j].ProjectToPlane(plane) - mesh[i, j]);
-
                         if (i < uSteps - 1 && !(j == 0 || j == vSteps - 1)) {
                             Plane midPlane = Plane.Create(Frame.Create(new Point[] { mesh[i + 1, j - 1], mesh[i + 1, j + 1] }.Average(), (mesh[i + 1, j - 1] - mesh[i + 1, j + 1]).Direction));
                             force += vSquare * (mesh[i, j].ProjectToPlane(midPlane) - mesh[i, j]);
                         }
-
                         if (i > 0 && !(j == 0 || j == vSteps - 1)) {
                             Plane midPlane = Plane.Create(Frame.Create(new Point[] { mesh[i - 1, j - 1], mesh[i - 1, j + 1] }.Average(), (mesh[i - 1, j - 1] - mesh[i - 1, j + 1]).Direction));
                             force += vSquare * (mesh[i, j].ProjectToPlane(midPlane) - mesh[i, j]);
                         }
-
                         if (j == vSteps - 1 || j == 0)
                             force = Vector.Zero;
-
 
                         newMesh[i, j] = mesh[i, j] + force;
                         newMesh[i, j].Print();
                         points[j] = newMesh[i, j];
                     }
-
                     loftCurves[i] = new ITrimmedCurve[] { CurveSegment.Create(NurbsCurve.CreateFromKnotPoints(false, points)) };
                 }
-
                 mesh = newMesh;
             }
-
             Body.LoftProfiles(loftCurves, false, false).Print();
 #else
             ICollection<DrawingView> views = Window.ActiveWindow.ActiveContext.GetSelection<DrawingView>();
-
-
 
             Part part = Window.ActiveWindow.Scene as Part;
             foreach (DesignBody desBody in part.GetDescendants<DesignBody>()) {
                 foreach (Face face in desBody.Shape.Faces) {
                     NurbsSurface nurbsSurface = null;
-
                     if (face.Geometry is NurbsSurface)
                         nurbsSurface = (NurbsSurface)face.Geometry;
-
                     if (face.Geometry is ProceduralSurface)
                         nurbsSurface = ((ProceduralSurface)face.Geometry).AsSpline(BoxUV.Create(
                             Interval.Create(face.Geometry.Parameterization.U.Bounds.Start.Value, face.Geometry.Parameterization.U.Bounds.End.Value),
                             Interval.Create(face.Geometry.Parameterization.V.Bounds.Start.Value, face.Geometry.Parameterization.V.Bounds.End.Value)
                         ));
-
                     if (nurbsSurface == null)
                         continue;
-
                     foreach (double paramU in nurbsSurface.DataU.Knots.Select(k => k.Parameter)) {
                         foreach (double paramV in nurbsSurface.DataV.Knots.Select(k => k.Parameter)) {
                             Point point = nurbsSurface.Evaluate(PointUV.Create(paramU, paramV)).Point;
                             DesignCurve.Create(part, CurveSegment.Create(PointCurve.Create(point)));
                         }
                     }
-
                 }
             }
-
 
             // remove small faces
             Part mainPart = Window.ActiveWindow.Scene as Part;
             Body body = mainPart.GetChildren<DesignBody>().First().Shape;
-
             var avoidFaces = new List<Face>();
-
             while (true) {
                 Face seedFace = null;
                 foreach (Face face in body.Faces) {
@@ -1609,10 +1354,8 @@ namespace SpaceClaim.AddIn.AETools {
                         break;
                     }
                 }
-
                 if (seedFace == null)
                     break;
-
                 var faces = new List<Face>();
                 faces.Add(seedFace);
                 while (true) {
@@ -1620,21 +1363,17 @@ namespace SpaceClaim.AddIn.AETools {
                     foreach (Face face in seedFace.AdjacentFaces) {
                         if (!(face.Geometry is Plane) || faces.Contains(face))
                             continue;
-
                         seedFace = face;
                         faces.Add(face);
                         found = true;
                     }
-
                     if (!found)
                         break;
                 }
-
                 if (faces.Count < 3) {
                     avoidFaces.AddRange(faces);
                     continue;
                 }
-
                 try {
                     body.DeleteFaces(faces, RepairAction.GrowSurrounding);
                 }
@@ -1643,7 +1382,6 @@ namespace SpaceClaim.AddIn.AETools {
                     avoidFaces.AddRange(faces);
                 }
             }
-
 
             //    Dictionary<string, string> tabIds = new Dictionary<string, string>() {
             //    {"Design", "DesignRibbonTab"},
@@ -1660,21 +1398,16 @@ namespace SpaceClaim.AddIn.AETools {
             //    {"Format", "GeometricToleranceRibbonTab"}
             //};
 
-
-
             //Part part = Window.ActiveWindow.Scene as Part;
             //Debug.Assert(part != null, "part != null");
             ////double length = 0.02;
             ////double width = 0.02;
             //double height = 1;
             ////	double desiredArea = 0.02;
-
             //ICollection<IDesignFace> designFaces = Window.ActiveWindow.ActiveContext.GetSelection<IDesignFace>();
-
             //List<Body> cutterBodies = new List<Body>();
             //foreach (IDesignBody desBody in part.GetDescendants<IDesignBody>())
             //    cutterBodies.Add(desBody.Master.Shape.Copy());
-
             //foreach (IDesignFace designFace in designFaces) {
             //    Face face = designFace.Master.Shape;
             //    List<ITrimmedCurve> profile = new List<ITrimmedCurve>();
@@ -1683,10 +1416,8 @@ namespace SpaceClaim.AddIn.AETools {
             //            profile.Add(fin.Edge);
             //        }
             //    }
-
             //    Body body = Body.ExtrudeProfile(Plane.PlaneXY, profile, height);
             //    body.Subtract(cutterBodies);
-
             //    List<Face> deleteFaces = new List<Face>();
             //    foreach (Face deleteFace in body.Faces) {
             //        foreach (Edge edge in deleteFace.Edges) {
@@ -1696,48 +1427,38 @@ namespace SpaceClaim.AddIn.AETools {
             //            }
             //        }
             //    }
-
             //    body.DeleteFaces(deleteFaces, RepairAction.None);
-
             //    DesignBody desBodyMaster = DesignBody.Create(part, "Metal", body);
             //    desBodyMaster.SetColor(null, System.Drawing.Color.DarkTurquoise);
             //}
-
             /////////////////////////
             //            DatumPlane datum = DatumPlane.Create(Window.ActiveWindow.Scene as Part, "CurvePlane", Plane.PlaneXY);
-
             //            CurveSegment curve1 = CurveSegment.Create(Line.Create(Point.Origin, Direction.DirX), Interval.Create(0.01, 0.02));
             //            CurveSegment curve2 = CurveSegment.Create(Line.Create(Point.Origin, Direction.DirY), Interval.Create(0.01, 0.02));
             //            DesignCurve.Create(datum, curve1);
             //            DesignCurve.Create(datum, curve2);
-
             //            Knot[] knotArray = new Knot[] {
             //                new Knot(-1, 3),
             //                new Knot(1, 3)
             //            };
-
             //            CurveEvaluation curveEval = curve1.Geometry.Evaluate(curve1.Bounds.Start);
             //            Direction t1 = curveEval.Tangent;
             //            curveEval = curve2.Geometry.Evaluate(curve1.Bounds.Start);
             //            Direction t2 = curveEval.Tangent;
-
             //            Vector c1 = Vector.Zero;
             //            Vector c2 = Vector.Zero;
             //            Point p0 = curve1.StartPoint;
             //            Point p3 = curve2.StartPoint;
             //            Point p1 = p0 - t1 * (6 * p3.Vector + 12 * p0.Vector - 2 * c1 - c2).Magnitude / 18;
             //            Point p2 = p3 - t2 * (6 * p0.Vector + 12 * p3.Vector - 2 * c2 - c1).Magnitude / 18;
-
             //            ControlPoint[] controlPointArray = new ControlPoint[] { 
             //                new ControlPoint(p0, 1),
             //                new ControlPoint(p1, 1),
             //                new ControlPoint(p2, 1),
             //                new ControlPoint(p3, 1)
             //            };
-
             //            NurbsData data = new NurbsData(4, true, true, knotArray);
             //            Curve curve = NurbsCurve.CreateFromControlPoints(data, controlPointArray);
-
             //            CurveSegment curveSegment = CurveSegment.Create(curve, Interval.Create(-1, 1));
             //            DesignCurve.Create(datum, curveSegment);
             //#if false
@@ -1748,85 +1469,63 @@ namespace SpaceClaim.AddIn.AETools {
             //            controlPoints.AddRange(someControlPoints);
             //            List<Knot> someKnotsCorrectParams = new List<Knot>();
             //            Debug.Assert(TryBuildC2NurbsData(curve2, false, 0.005, out someKnots, out someControlPoints));
-
             //            someKnots.Reverse();
             //            double param = knots[knots.Count - 1].Parameter;
             //            foreach (Knot knot in someKnots)
             //                someKnotsCorrectParams.Add(new Knot(++param, knot.Multiplicity));
-
             //            someControlPoints.Reverse();
             //            knots.AddRange(someKnotsCorrectParams);
             //            controlPoints.AddRange(someControlPoints);
-
             //            Knot[] knotArray = new Knot[knots.Count];
             //            knots.CopyTo(knotArray);
             //            NurbsData data = new NurbsData(4, true, true, knotArray);
-
             //            ControlPoint[] controlPointArray = new ControlPoint[controlPoints.Count];
             //            controlPoints.CopyTo(controlPointArray);
             //            Curve curve = NurbsCurve.Create(data, controlPointArray);
-
             //            CurveSegment curveSegment = CurveSegment.Create(curve, Interval.Create(0, 9));
             //            DesignCurve.Create(datum, curveSegment);
             //            curveSegment = CurveSegment.Create(curve, Interval.Create(4, 5));
             //            DesignCurve.Create(datum, curveSegment);
             //#endif
-
             //#if false
             //            Circle circle = Circle.Create(Frame.Create(Point.Origin, Direction.DirX, Direction.DirY), 1);
             //            Interval interval = Interval.Create(0, 2 * Math.PI);
             //            CurveSegment curveSegment = CurveSegment.Create(circle, interval);
-
             //            DesignCurve.Create(datum, curveSegment);
-
             //            //Vector knotVector = null;
             //            for (double fudge = 3.7; fudge < 4; fudge += 0.05) {
             //                CurveEvaluation curveEvaluation = null;
-
             //                List<Knot> knots = new List<Knot>();
             //                List<ControlPoint> controlPoints = new List<ControlPoint>();
-
             //                for (double t = 0; t <= 2 * Math.PI; t += 2 * Math.PI / 8) {
             //                    curveEvaluation = circle.Evaluate(t);
-
             //                    knots.Add(new Knot(t, 3));
-
             //                    if (t > 0)
             //                        controlPoints.Add(new ControlPoint(curveEvaluation.Point - curveEvaluation.Tangent * circle.Radius / fudge, 1));
-
             //                    controlPoints.Add(new ControlPoint(curveEvaluation.Point, 1));
-
             //                    if (t < 2 * Math.PI)
             //                        controlPoints.Add(new ControlPoint(curveEvaluation.Point + curveEvaluation.Tangent * circle.Radius / fudge, 1));
-
             //                }
-
             //                Knot[] knotArray = new Knot[knots.Count];
             //                knots.CopyTo(knotArray);
             //                NurbsData data = new NurbsData(4, true, true, knotArray);
-
             //                ControlPoint[] controlPointArray = new ControlPoint[controlPoints.Count];
             //                controlPoints.CopyTo(controlPointArray);
             //                Curve curve = NurbsCurve.Create(data, controlPointArray);
-
             //                curveSegment = CurveSegment.Create(curve, interval);
             //                DesignCurve.Create(datum, curveSegment);
             //            }
-
             //#endif
-
 
             //#if false
             //        static void Curves_Executing(object sender, EventArgs e) {
             //            DatumPlane datum = DatumPlane.Create(Window.ActiveWindow.Scene as Part, "CurvePlane", Plane.PlaneXY);
-
             //            //int multiplicity = 1;
             //            Knot[] knots = new Knot[] {
             //                new Knot(0, 4),
             //                new Knot(0.5, 3),
             //                new Knot(1, 4)
             //            };
-
             //            ControlPoint[] controlPoints = new ControlPoint[] {
             //                new ControlPoint(Point.Create(0, 0, 0), 1),
             //                new ControlPoint(Point.Create(0, 1, 0), 1),
@@ -1836,17 +1535,14 @@ namespace SpaceClaim.AddIn.AETools {
             //                new ControlPoint(Point.Create(4, 1, 0), 1),
             //                new ControlPoint(Point.Create(4, 0, 0), 1)
             //            };
-
             //            NurbsData data = new NurbsData(4, false, false, knots);
             //            Curve curve = NurbsCurve.Create(data, controlPoints);
             //            Interval interval = Interval.Create(0, 1);
             //            CurveSegment curveSegment = CurveSegment.Create(curve, interval);
-
             //            DesignCurve.Create(datum, curveSegment);
             //        }
             //#endif
         }
-
 #endif
         }
 #if true
@@ -1854,7 +1550,6 @@ namespace SpaceClaim.AddIn.AETools {
             OpenFileDialog dialog = new OpenFileDialog();
             dialog.Filter = "CSV Files (*.csv)|*.csv";
             DialogResult result = dialog.ShowDialog();
-
             if (result == DialogResult.OK) {
                 Part part = Window.ActiveWindow.Scene as Part;
                 if (part == null)
@@ -1862,23 +1557,18 @@ namespace SpaceClaim.AddIn.AETools {
                 ImportSpheres(dialog.FileName, part);
                 Window.ActiveWindow.ZoomExtents();
             }
-
             return;
         }
-
         static void ImportSpheres(string fileName, Part part) {
             StreamReader stream = File.OpenText(fileName);
             Window window = Window.ActiveWindow;
             string error = "Error reading file";
-
             string streamLine = stream.ReadLine();
-
             double diameter;
             if (!window.Units.Length.TryParse(streamLine, out diameter)) {
                 Application.ReportStatus(error, StatusMessageType.Error, null);
                 return;
             }
-
             double x, y, z;
             Regex regex = new Regex(@"(-?[\d\.]+)\s*,\s*(-?[\d\.]+)\s*,\s*(-?[\d\.]+)");
             while (!string.IsNullOrEmpty(streamLine = stream.ReadLine())) {
@@ -1895,28 +1585,20 @@ namespace SpaceClaim.AddIn.AETools {
                 }
             }
 
-
-
 #else
 		static void Vector_Executing(object sender, EventArgs e) {
 			Part rootPart = Window.ActiveWindow.Scene as Part;
 			Debug.Assert(rootPart != null);
-
 			foreach (IComponent iComponent in rootPart.Components) 
 				SetVisibility(iComponent, false);
-
 			foreach (IComponent iComponent in rootPart.Components) {
 				SetVisibility(iComponent, true);
-
 				string fileNameBase = rootPart.Document.Path;
 				Window.ActiveWindow.Export(WindowExportFormat.AutoCadDwg, String.Format("{0}-{1}.dwg", fileNameBase, iComponent.Content.Master.Name));
 			//	Window.ActiveWindow.Export(WindowExportFormat.Png, String.Format("{0}-{1}.png", fileNameBase, iComponent.Content.Master.Name));
-
 				SetVisibility(iComponent, false);
 			}
-
 		}
-
 		static void SetVisibility(IComponent iComponent, bool isVisible) {
 			foreach (IHasVisibility iHasVisibility in iComponent.Content.GetChildren<IHasVisibility>())
 				iHasVisibility.SetVisibility(null, isVisible);
@@ -1924,27 +1606,21 @@ namespace SpaceClaim.AddIn.AETools {
 #endif
         }
     }
-
     public static class ReaderExtensions {
         public static string ReadLine(this BinaryReader reader) {
             List<byte> buffer = new List<byte>();
             byte thisByte;
             while ((thisByte = reader.ReadByte()) != '\n')
                 buffer.Add(thisByte);
-
             return Encoding.ASCII.GetString(buffer.ToArray());
         }
-
         public static int ReadBigEndianInt(this BinaryReader reader) {
             int v = reader.ReadInt32();
             return (v & 0xFF) << 24 | (v & 0xFF00) << 8 | (v >> 8) & 0xFF00 | (v >> 24) & 0xFF;
         }
-
         public static float ReadBigEndianFloat(this BinaryReader reader) {
             int v = reader.ReadBigEndianInt();
             return BitConverter.ToSingle(BitConverter.GetBytes(v), 0);
         }
-
     }
-
 }

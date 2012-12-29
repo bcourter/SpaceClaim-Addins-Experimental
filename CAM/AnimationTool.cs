@@ -327,12 +327,12 @@ namespace SpaceClaim.AddIn.CAM {
             if (enable) {
                 Window.SelectionChanged += Window_SelectionChanged;
                 if (toolPathObj != null)
-                    toolPathObj.Changed += Window_SelectionChanged;
+                    toolPathObj.ToolPathChanged += Window_SelectionChanged;
             }
             else {
                 Window.SelectionChanged -= Window_SelectionChanged;
                 if (toolPathObj != null)
-                    toolPathObj.Changed -= Window_SelectionChanged;
+                    toolPathObj.ToolPathChanged -= Window_SelectionChanged;
             }
         }
 
@@ -356,7 +356,7 @@ namespace SpaceClaim.AddIn.CAM {
             }
 
             toolPath = toolPathObj.ToolPath;
-            locations = toolPathObj.CutterLocations;
+            locations = toolPathObj.ToolPath.CutterLocations;
             timeToLocation = new double[locations.Count];
 
             time = 0;

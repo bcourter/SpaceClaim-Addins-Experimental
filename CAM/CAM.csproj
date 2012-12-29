@@ -88,7 +88,7 @@
     <Compile Include="ToolPathObject.cs" />
     <Compile Include="CuttingParameters.cs" />
     <Compile Include="CuttingTool.cs" />
-    <Compile Include="Operation.cs" />
+    <Compile Include="CutterLocation.cs" />
     <Compile Include="ToolPath.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
