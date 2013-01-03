@@ -135,16 +135,22 @@ namespace SpaceClaim.AddIn.AETools {
 #if true // planar offset
             const double inches = 25.4 / 1000;
             const double webWidth = (double)3 / 32 * inches;
-            const double circuitBoardBandThickness = 0.001;
+            const double circuitBoardBandThickness = 0.0005;
             const double circuitBoardBandWidth = 0.01;
             const double circuitBoardBandPeriod = (double)1 / 30;
-            const double circuitBoardBandFlat = circuitBoardBandWidth; // circuitBoardBandPeriod / 2;
+            double circuitBoardBandFlat = circuitBoardBandWidth * Const.Phi; // circuitBoardBandPeriod / 2;
             const double circuitBoardLedSize = 0.005;
             const double circuitBoardLedHoleSize = 0.281 * inches; // K drill -- 5mm * sqrt(2) = 0.278388
-            const double circuitBoardLedHeight = 0.002;
+            const double circuitBoardLedHeight = 0.0025;
+            const double circuitBoardResistorHeight = 0.0015;
+            const double circuitBoardResistorWidth = 0.002;
+            const double circuitBoardResistorLength = 0.004;
+            const double circuitBoardResistorOffset = circuitBoardLedSize / 2 + 0.001 + circuitBoardResistorWidth / 2;
             const double focusMaterialThickness = (0.75 - .01) * inches; //  http://www.interstateplastics.com/Black-Hdpe-Sheet-HDPBE.php?sku=HDPBE&vid=201211120902-7p&dim2=48&dim3=48&thickness=0.750&qty=1&recalculate.x=123&recalculate.y=18
             //     const double focusMaterialThickness = (0.75 - .038) * inches; // McMaster 8619K487	
-            const double focusHeight = focusMaterialThickness - circuitBoardBandThickness * 3 - circuitBoardLedHeight;
+            const double circuitBoardTopDepth = circuitBoardBandThickness * 4;
+            const double circuitBoardTopHeight = focusMaterialThickness - circuitBoardTopDepth;
+            const double focusHeight = circuitBoardTopHeight - circuitBoardLedHeight;
             //    const double domeMaterialThickness = 0.75; //   http://www.interstateplastics.com/Clear-Acrylic-Cast-Paper-Sheet-ACRCLCP.php?sku=ACRCLCP&vid=201211180031-7p&dim2=48&dim3=48&thickness=0.750&qty=1
             //         const double domeMaterialThickness = (double)11 / 16 - 0.049; // McMaster 8560K367	
             const double domeHeight = (double)21 / 32 * inches;
@@ -152,18 +158,20 @@ namespace SpaceClaim.AddIn.AETools {
             const double boxSize = 48 * inches;
             const double boxLimit = 46 * inches;
 
+            int maxPrint = 55;
 
-
-            int maxPrint = 3;
-
+            // Circuit board part
             Point circuitBoardBoxCorner = Point.Create(circuitBoardBandFlat / 2, circuitBoardBandWidth / 2, circuitBoardBandThickness / 2);
             Box circuitBoardBox = Box.Create(circuitBoardBoxCorner, -1 * circuitBoardBoxCorner);
             Point circuitBoardLedCorner = Point.Create(circuitBoardLedSize / 2, circuitBoardLedSize / 2, circuitBoardLedHeight / 2);
             Box circuitBoardLedBox = Box.Create(circuitBoardLedCorner, -1 * circuitBoardLedCorner);
-            Point circuitBendStartLeft = Point.Create(circuitBoardBandFlat / 2, circuitBoardBandWidth / 2, -circuitBoardBandThickness);
-            Point circuitBendStartRight = Point.Create(circuitBoardBandFlat / 2, -circuitBoardBandWidth / 2, -circuitBoardBandThickness);
-            Point circuitBendEndLeft = Point.Create(-circuitBoardBandFlat / 2, circuitBoardBandWidth / 2, -circuitBoardBandThickness);
-            Point circuitBendEndRight = Point.Create(-circuitBoardBandFlat / 2, -circuitBoardBandWidth / 2, -circuitBoardBandThickness);
+            Point circuitBoardResistorCorner = Point.Create(circuitBoardResistorWidth / 2, circuitBoardResistorLength / 2, circuitBoardResistorHeight / 2);
+            Box circuitBoardResistorBox = Box.Create(circuitBoardResistorCorner, -1 * circuitBoardResistorCorner);
+
+            Point circuitBendStartLeft = Point.Create(circuitBoardBandFlat / 2, circuitBoardBandWidth / 2, 0);
+            Point circuitBendStartRight = Point.Create(circuitBoardBandFlat / 2, -circuitBoardBandWidth / 2, 0);
+            Point circuitBendEndLeft = Point.Create(-circuitBoardBandFlat / 2, circuitBoardBandWidth / 2, 0);
+            Point circuitBendEndRight = Point.Create(-circuitBoardBandFlat / 2, -circuitBoardBandWidth / 2, 0);
             Vector circuitBendVector = Vector.Create(-circuitBoardBandFlat, 0, 0);
             int count = 1280;
             int countExtra = 1600;
@@ -177,15 +185,23 @@ namespace SpaceClaim.AddIn.AETools {
             Part LedPart = Part.Create(MainPart.Document, "Led");
             DesignCurve.Create(LedPart, CurveSegment.Create(PointCurve.Create(Point.Origin)));
             desBody = ShapeHelper.CreateBlock(circuitBoardBox, LedPart);
-            desBody.Transform(Matrix.CreateTranslation(Direction.DirZ * (-circuitBoardLedHeight - circuitBoardBandThickness / 2)));
+            desBody.Transform(Matrix.CreateTranslation(Direction.DirZ * -circuitBoardBandThickness / 2));
             desBody.Layer = stripLayer;
             desBody = ShapeHelper.CreateBlock(circuitBoardLedBox, LedPart);
-            desBody.Transform(Matrix.CreateTranslation(Direction.DirZ * -circuitBoardLedHeight / 2));
+            desBody.Transform(Matrix.CreateTranslation(Direction.DirZ * circuitBoardLedHeight / 2));
             desBody.Layer = stripLayer;
+
+            desBody = ShapeHelper.CreateBlock(circuitBoardResistorBox, LedPart);
+            desBody.Transform(Matrix.CreateTranslation(Direction.DirX * circuitBoardResistorOffset + Direction.DirZ * circuitBoardResistorHeight / 2));
+            desBody.Layer = stripLayer;
+            desBody = ShapeHelper.CreateBlock(circuitBoardResistorBox, LedPart);
+            desBody.Transform(Matrix.CreateTranslation(Direction.DirX * -circuitBoardResistorOffset + Direction.DirZ * circuitBoardResistorHeight / 2));
+            desBody.Layer = stripLayer;
+
+
             var points = new List<Point>();
-            double phi = (1 + Math.Sqrt(5)) / 2;
             for (int i = 1; i < countExtra + 1; i++) {
-                double angle = (double)i * (phi - 1) * 2 * Math.PI;
+                double angle = (double)i * (Const.Phi - 1) * 2 * Math.PI;
                 double radius = (double)Math.Sqrt(i) * 0.06;
                 Matrix trans = Matrix.CreateRotation(Line.Create(Point.Origin, Direction.DirZ), angle);
                 Point point = trans * Point.Create(radius, 0, 0);
@@ -200,31 +216,17 @@ namespace SpaceClaim.AddIn.AETools {
             };
             boxPolygon.AsPolygon().Print();
             double size = Math.Max(box.Size.X, box.Size.Y);
-            points = points.Select(p => (p - box.Center.Vector) * ((boxLimit) / size)).ToList();
+            points = points.Select(p => (p - box.Center.Vector) * (boxLimit / size)).ToList();
+            Vector newCenter = -box.Center.Vector * (boxLimit / size);
             Dictionary<VectorVoronoi, Cell> cells;
             List<VectorVoronoi> vectors;
             List<CurveSegment> outerEdges;
             CreateVoronoi(count, points, out cells, out vectors, out outerEdges);
 
-            // Tents for bends
-            //      int printCount = 0;
-            //if (printCount++ <= maxPrint * 20) {
-            //    Point pA = Point.Create(edge.VVertexA.X, edge.VVertexA.Y, 0);
-            //    Point pB = Point.Create(edge.VVertexB.X, edge.VVertexB.Y, 0);
-            //    CurveSegment nominalCurve = CurveSegment.Create(pA, pB);
-            //    CurveSegment apexCurve = nominalCurve.CreateTransformedCopy(Matrix.CreateTranslation(-Direction.DirZ * focusRootThickness));
-            //    Direction offsetDir = Direction.Cross((apexCurve.EndPoint - apexCurve.StartPoint).Direction, Direction.DirZ);
-            //    CurveSegment curveA = nominalCurve.CreateTransformedCopy(Matrix.CreateTranslation(-Direction.DirZ * focusMaterialThickness + offsetDir * focusApexWidth / 2));
-            //    CurveSegment curveB = nominalCurve.CreateTransformedCopy(Matrix.CreateTranslation(-Direction.DirZ * focusMaterialThickness - offsetDir * focusApexWidth / 2));
-            //    Body.LoftProfiles(new ITrimmedCurve[][] { new ITrimmedCurve[] { curveA }, new ITrimmedCurve[] { apexCurve } }, false, false).Print();
-            //    Body.LoftProfiles(new ITrimmedCurve[][] { new ITrimmedCurve[] { curveB }, new ITrimmedCurve[] { apexCurve } }, false, false).Print();
-            //}
-
             // Find cell nearest neighbors, outward
             int seedIndex = 0;
             List<Cell> seeds = new List<Cell>();
             List<Cell> used = new List<Cell>();
-            var notePlane = DatumPlane.Create(MainPart, "xxx", Plane.PlaneXY);
             while (seedIndex < count) {
                 Cell cell = cells[vectors[seedIndex++]];
                 if (used.Contains(cell))
@@ -232,7 +234,7 @@ namespace SpaceClaim.AddIn.AETools {
 
                 seeds.Add(cell);
                 double lastAngle = 0;
-                double maxBendAngle = Math.PI / 6;
+                double maxBendAngle = Math.PI / 3;
                 while (cell != null) {
                     used.Add(cell);
                     Cell[] nextCandidates = cell.Neighbors
@@ -245,8 +247,6 @@ namespace SpaceClaim.AddIn.AETools {
                     if (nextCandidates.Length == 0)
                         break;
 
-                    Note.Create(notePlane, notePlane.Shape.Geometry.ProjectPoint(cell.Center).Param, TextPoint.Center, 0.25 * inches, seedIndex.ToString());
-
                     // Max attainable distance is the period between cells * cos(2*angle deviation)
                     double angle0 = (nextCandidates[0].Center - cell.Center).AngleInXY();
                     if (lastAngle == 0) {
@@ -258,7 +258,7 @@ namespace SpaceClaim.AddIn.AETools {
 
                     if (nextCandidates.Length >= 2) {
                         double angle1 = (nextCandidates[1].Center - cell.Center).AngleInXY();
-                        Debug.WriteLine("{0}:  {1} {2} -- {3}", seedIndex, AbsAngleDifference(angle0, lastAngle), AbsAngleDifference(angle1, lastAngle), Math.Abs(angle1) < Math.Abs(angle0) && (nextCandidates[1].Center - cell.Center).Magnitude /* * Math.Cos(2 * (angle1 - lastAngle))*/ < circuitBoardBandPeriod);
+                        //    Debug.WriteLine("{0}:  {1} {2} -- {3}", seedIndex, AbsAngleDifference(angle0, lastAngle), AbsAngleDifference(angle1, lastAngle), Math.Abs(angle1) < Math.Abs(angle0) && (nextCandidates[1].Center - cell.Center).Magnitude /* * Math.Cos(2 * (angle1 - lastAngle))*/ < circuitBoardBandPeriod);
                         if (AbsAngleDifference(angle1, lastAngle) < AbsAngleDifference(angle0, lastAngle) && AbsAngleDifference(angle1, lastAngle) < maxBendAngle && (nextCandidates[1].Center - cell.Center).Magnitude / Math.Cos(2 * (angle1 - lastAngle)) < circuitBoardBandPeriod) {
                             cell.Next = nextCandidates[1];
                             lastAngle = angle1;
@@ -292,28 +292,28 @@ namespace SpaceClaim.AddIn.AETools {
 
                 if (length == 1) {
                     angle = cell.Center.Vector.AngleInXY();
-                    part = CreateRotatedInstanceWithPart(focusHeight, LedPart, mainPart, cell, angle);
+                    part = CreateRotatedInstanceWithPart(circuitBoardTopHeight, LedPart, mainPart, cell, angle);
                     continue;
                 }
 
                 if (length == 2) {
                     angle = (cell.Center - cell.Next.Center).AngleInXY();
-                    part = CreateRotatedInstanceWithPart(focusHeight, LedPart, mainPart, cell, angle);
-                    part = CreateRotatedInstanceWithPart(focusHeight, LedPart, mainPart, cell.Next, angle);
+                    part = CreateRotatedInstanceWithPart(circuitBoardTopHeight, LedPart, mainPart, cell, angle);
+                    part = CreateRotatedInstanceWithPart(circuitBoardTopHeight, LedPart, mainPart, cell.Next, angle);
                     continue;
                 }
 
 
                 angle = ((cell.Center - cell.Next.Center).Direction.UnitVector + (cell.Next.Center - cell.Next.Next.Center).Direction.UnitVector).AngleInXY();
                 angle = angle - 2 * (angle - (cell.Center - cell.Next.Center).AngleInXY());
-                part = CreateRotatedInstanceWithPart(focusHeight, LedPart, mainPart, cell, angle);
+                part = CreateRotatedInstanceWithPart(circuitBoardTopHeight, LedPart, mainPart, cell, angle);
 
                 Cell previousCell = cell;
                 Cell previousPreviousCell = null;
                 thisCell = cell.Next;
                 while (thisCell.Next != null) {
                     angle = ((previousCell.Center - thisCell.Center).Direction.UnitVector + (thisCell.Center - thisCell.Next.Center).Direction.UnitVector).AngleInFrame(Frame.World);
-                    part = CreateRotatedInstanceWithPart(focusHeight, LedPart, mainPart, thisCell, angle);
+                    part = CreateRotatedInstanceWithPart(circuitBoardTopHeight, LedPart, mainPart, thisCell, angle);
                     previousPreviousCell = previousCell;
                     previousCell = thisCell;
                     thisCell = thisCell.Next;
@@ -321,27 +321,93 @@ namespace SpaceClaim.AddIn.AETools {
 
                 angle = ((thisCell.Center - previousCell.Center).Direction.UnitVector + (previousCell.Center - previousPreviousCell.Center).Direction.UnitVector).AngleInXY();
                 angle = angle - 2 * (angle - (thisCell.Center - previousCell.Center).AngleInXY()) + Math.PI;
-                part = CreateRotatedInstanceWithPart(focusHeight, LedPart, mainPart, thisCell, angle);
+                part = CreateRotatedInstanceWithPart(circuitBoardTopHeight, LedPart, mainPart, thisCell, angle);
             }
 
+            // LED Strps
+            var ledStripPart = Part.Create(mainPart.Document, "LED Strips");
+            Component.Create(mainPart, ledStripPart);
             foreach (Cell cell in seeds) {
                 Cell thisCell = cell;
                 Cell previousCell = null;
+                Matrix transStart, transEnd;
+                double leftoverStrip = (circuitBoardBandPeriod - circuitBoardBandFlat) / 2;
+
+                transStart =  thisCell.LedComponent.Placement;
+                var profile = new List<ITrimmedCurve>();
+                profile.Add(CurveSegment.Create(transStart * circuitBendStartRight, transStart * (circuitBendStartRight - circuitBendVector.Direction * leftoverStrip)));
+                profile.Add(CurveSegment.Create(transStart * circuitBendStartLeft, transStart * (circuitBendStartLeft - circuitBendVector.Direction * leftoverStrip)));
+                profile.Add(CurveSegment.Create(transStart * (circuitBendStartRight - circuitBendVector.Direction * leftoverStrip), transStart * (circuitBendStartLeft - circuitBendVector.Direction * leftoverStrip)));
+
+                profile.Add(CurveSegment.Create(transStart * circuitBendStartRight, transStart * circuitBendEndRight));
+                profile.Add(CurveSegment.Create(transStart * circuitBendStartLeft, transStart * circuitBendEndLeft));
+
                 while (thisCell.Next != null) {
-                    Matrix transStart = thisCell.LedComponent.Placement;
-                    Matrix transEnd = thisCell.Next.LedComponent.Placement;
-                    NurbsCurve.CreateFromKnotPoints(false, new Point[] { transStart * circuitBendEndRight, transEnd * circuitBendStartRight }, transStart * circuitBendVector, transEnd * circuitBendVector).Print();
-                    NurbsCurve.CreateFromKnotPoints(false, new Point[] { transStart * circuitBendEndLeft, transEnd * circuitBendStartLeft }, transStart * circuitBendVector, transEnd * circuitBendVector).Print();
+                    transStart =  thisCell.LedComponent.Placement;
+                    transEnd =  thisCell.Next.LedComponent.Placement;
+                    profile.Add(CurveSegment.Create(NurbsCurve.CreateFromKnotPoints(false, new Point[] { transStart * circuitBendEndRight, transEnd * circuitBendStartRight }, transStart * circuitBendVector, transEnd * circuitBendVector)));
+                    profile.Add(CurveSegment.Create(NurbsCurve.CreateFromKnotPoints(false, new Point[] { transStart * circuitBendEndLeft, transEnd * circuitBendStartLeft }, transStart * circuitBendVector, transEnd * circuitBendVector)));
+
+                    profile.Add(CurveSegment.Create(transStart * circuitBendStartRight, transStart * circuitBendEndRight));
+                    profile.Add(CurveSegment.Create(transStart * circuitBendStartLeft, transStart * circuitBendEndLeft));
+
                     previousCell = thisCell;
                     thisCell = thisCell.Next;
                 }
+
+                transStart =  thisCell.LedComponent.Placement;
+                profile.Add(CurveSegment.Create(transStart * circuitBendEndRight, transStart * (circuitBendEndRight + circuitBendVector.Direction * leftoverStrip)));
+                profile.Add(CurveSegment.Create(transStart * circuitBendEndLeft, transStart * (circuitBendEndLeft + circuitBendVector.Direction * leftoverStrip)));
+                profile.Add(CurveSegment.Create(transStart * (circuitBendEndRight + circuitBendVector.Direction * leftoverStrip), transStart * (circuitBendEndLeft + circuitBendVector.Direction * leftoverStrip)));
+
+                profile.Add(CurveSegment.Create(transStart * circuitBendStartRight, transStart * circuitBendEndRight));
+                profile.Add(CurveSegment.Create(transStart * circuitBendStartLeft, transStart * circuitBendEndLeft));
+
+                Plane plane = Plane.Create(Frame.Create(Point.Create(0, 0, -circuitBoardTopHeight), Direction.DirX, Direction.DirY));
+                //     Body.CreatePlanarBody(Plane.Create(Frame.Create(Point.Create(0, 0, -circuitBoardTopHeight), Direction.DirX, Direction.DirY)), profile).Print();
+                try {
+                    var stripBody = Body.ExtrudeProfile(plane, profile, -circuitBoardBandThickness);
+                    cell.LedDesBody = DesignBody.Create(ledStripPart, String.Format("LED Strip {0}", cell.Index), stripBody);
+                    cell.LedDesBody.Layer = stripLayer;
+                }
+                catch {
+                    profile.Print();
+                }
+
+
+                double draft = Const.Tau / 12;
+                Matrix trans = Matrix.CreateTranslation(Direction.DirZ * -circuitBoardTopDepth);
+                profile = profile.OffsetTowards(plane.ProjectPoint(cell.Center).Point, plane, -Math.Tan(draft) * circuitBoardBandThickness).ToList();
+                var offsetProfile = profile.OffsetTowards(plane.ProjectPoint(cell.Center).Point, plane, Math.Tan(draft) * circuitBoardTopDepth);
+                offsetProfile = offsetProfile.Select(c => c.CreateTransformedCopy(trans)).ToArray();
+
+                Body b1 = Body.CreatePlanarBody(plane, profile);
+                Body b2 = Body.CreatePlanarBody(plane.CreateTransformedCopy(trans), offsetProfile);
+                try {
+                    cell.LedClearanceBody = Body.LoftProfiles(new List<ICollection<ITrimmedCurve>> { b1.Edges.ToArray(), b2.Edges.ToArray() }, false, false);
+                }
+                catch {
+                    cell.LedClearanceBody = Body.ExtrudeProfile(plane, profile, -circuitBoardTopDepth);
+                    b1.Edges.ToArray().Print();
+                    b2.Edges.ToArray().Print();
+                }
+
+                thisCell = cell.Next;
+                while (thisCell != null) {
+                    thisCell.LedDesBody = cell.LedDesBody;
+                    thisCell.LedClearanceBody = cell.LedClearanceBody;
+                    thisCell = thisCell.Next;
+                }
+
             }
 
-
             int printIndex = 0;
-            foreach (Cell cell in seeds.OrderBy(c => c.Center.Vector.MagnitudeSquared())) {
+            var notePlane = DatumPlane.Create(MainPart, "Indices", Plane.PlaneXY);
+            foreach (Cell cell in cells.Values.OrderBy(c => (c.Center.Vector - newCenter).MagnitudeSquared())) {
                 Part part = cell.Component.Template;
                 part.Name = string.Format("Cell {0}", printIndex);
+                Note.Create(notePlane, notePlane.Shape.Geometry.ProjectPoint(cell.Center).Param, TextPoint.Center, 0.25 * inches, printIndex.ToString());
+
                 Point focus = cell.Center - Direction.DirZ * focusHeight;
                 ICollection<ITrimmedCurve> nominalPath = cell.Edges.Cast<ITrimmedCurve>().ToArray();
                 ICollection<ITrimmedCurve> insetPath = cell.Edges.Cast<ITrimmedCurve>().ToArray().OffsetTowards(cell.Center, Plane.PlaneXY, webWidth / 2);
@@ -364,6 +430,30 @@ namespace SpaceClaim.AddIn.AETools {
                 outside.Stitch(new[] { lip, parabolas, parabolaBottom }, Accuracy.LinearResolution * 100, tracker);
                 Body hole = ShapeHelper.CreateCylinder(cell.Center, cell.Center - Vector.Create(0, 0, focusMaterialThickness), circuitBoardLedHoleSize);
                 outside.Subtract(new[] { hole });
+
+                // Troughs
+                BallMill troughBallMill = BallMill.StandardSizes.Values.Where(b => Accuracy.EqualLengths(b.Radius * 2, (double)3 / 8 * inches)).First();
+                double troughWidth = (double)1 / 2 * inches;
+                double troughUpperOffsetIn = troughWidth / 2 - troughBallMill.Radius;
+                double troughDepth = (double)5 / 16 * inches;
+                double troughLowerOffsetDown = troughDepth - troughBallMill.Radius;
+                ICollection<ITrimmedCurve> troughUpperPath = cell.Edges.Cast<ITrimmedCurve>().ToArray()
+                    .OffsetTowards(cell.Center, Plane.PlaneXY, troughUpperOffsetIn)
+                    .Select(c => (ITrimmedCurve)c.CreateTransformedCopy(Matrix.CreateTranslation(Direction.DirZ * -focusMaterialThickness))).ToArray();
+                ICollection<ITrimmedCurve> troughLowerPath = cell.Edges.Cast<ITrimmedCurve>()
+                    .Select(c => (ITrimmedCurve)c.CreateTransformedCopy(Matrix.CreateTranslation(Direction.DirZ * (-focusMaterialThickness + troughLowerOffsetDown)))).ToArray();
+
+                try {
+                    outside.Subtract(troughLowerPath.Select(c => ShapeHelper.CreateCable(c, troughBallMill.Radius * 2)).ToArray());
+                    outside.Subtract(troughUpperPath.Select(c => ShapeHelper.CreateCable(c, troughBallMill.Radius * 2)).ToArray());
+                }
+                catch { }
+
+                if (outside.PieceCount > 1)
+                    outside = outside.SeparatePieces().OrderBy(b => b.Volume).Last();
+
+                outside.Subtract(new[] { cell.LedClearanceBody.Copy() });
+
                 newParabolas = newParabolas.Select(f => tracker.GetSurvivors(f).First()).ToArray();
                 newParabolaBottom = tracker.GetSurvivors(newParabolaBottom).First();
                 desBody = DesignBody.Create(part, "Reflector", outside);
@@ -372,12 +462,13 @@ namespace SpaceClaim.AddIn.AETools {
                 var contouringParams = new CuttingParameters(smallerBall.Radius, 1, 0.25 * inches);
                 var bottommingParams = new CuttingParameters(smallerBall.Radius / 2, 1, 0.25 * inches);
                 foreach (Face face in newParabolas) {
-                    var toolPath = new FaceToolPath(face, smallerBall, contouringParams, FaceToolPath.StrategyType.UV);
-                    FaceToolPathObject.Create(desBody.Faces.Where(f => f.Shape == face).First(), toolPath, System.Drawing.Color.DarkCyan);
+                    //   var toolPath = new FaceToolPath(face, smallerBall, contouringParams, FaceToolPath.StrategyType.UV);
+                    // hetre     FaceToolPathObject.Create(desBody.Faces.Where(f => f.Shape == face).First(), toolPath, System.Drawing.Color.DarkCyan);
                 }
-                //  var bottommingToolPath = new SpiralFacingToolPath(newParabolaBottom, newParabolaBottom.Edges.Select(e => e.Faces.Where(f => f != newParabolaBottom).First()).ToArray(), smallerBall, bottommingParams);
-                var bottommingToolPath = new FaceToolPath(newParabolaBottom, smallerBall, bottommingParams, FaceToolPath.StrategyType.Spiral);
-                FaceToolPathObject.Create(desBody.Faces.Where(f => f.Shape == newParabolaBottom).First(), bottommingToolPath, System.Drawing.Color.DarkOrange);
+
+
+                //     var bottommingToolPath = new FaceToolPath(newParabolaBottom, smallerBall, bottommingParams, FaceToolPath.StrategyType.Spiral);
+                //here     FaceToolPathObject.Create(desBody.Faces.Where(f => f.Shape == newParabolaBottom).First(), bottommingToolPath, System.Drawing.Color.DarkOrange);
                 //   Body insideTop = ArcLoft(domeHeight, cell.Center, insetBody);
                 Matrix m = Matrix.CreateTranslation(Direction.DirZ * domeRootThickness);
                 Body nominalBody2 = Body.CreatePlanarBody(Plane.PlaneXY, nominalPath);
@@ -391,6 +482,10 @@ namespace SpaceClaim.AddIn.AETools {
                 desBody = DesignBody.Create(part, "Lens", outsideTop);
                 desBody.Layer = lensLayer;
                 desBody.Style = BodyStyle.Transparent;
+
+
+
+
             }
             ICollection<ITrimmedCurve> outerPath = outerEdges.Cast<ITrimmedCurve>().ToArray().OffsetTowards(Point.Origin, Plane.PlaneXY, -webWidth / 2);
             outerPath.Print();
@@ -598,6 +693,8 @@ namespace SpaceClaim.AddIn.AETools {
             public List<Cell> Neighbors { get; set; }
             public Component Component { get; set; }
             public Component LedComponent { get; set; }
+            public DesignBody LedDesBody { get; set; }
+            public Body LedClearanceBody { get; set; }
             public Cell(Point center, int index) {
                 Center = center;
                 Edges = new List<CurveSegment>();
