@@ -93,6 +93,7 @@
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
     <Compile Include="SaveX3d.cs" />
+    <Compile Include="SaveSSL.cs" />
     <Compile Include="ZBitmap.cs" />
     <Compile Include="Rounds.cs" />
     <Compile Include="Forstnerize.cs" />

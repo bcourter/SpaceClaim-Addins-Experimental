@@ -34,7 +34,8 @@ namespace SpaceClaim.AddIn.CAM {
 
         public static readonly Dictionary<FaceToolPath.StrategyType, string> TypeNames = new Dictionary<FaceToolPath.StrategyType, string> {
             {FaceToolPath.StrategyType.UV, Resources.ToolPathFaceUV},
-            {FaceToolPath.StrategyType.Spiral, Resources.ToolPathFaceSpiral}
+            {FaceToolPath.StrategyType.Spiral, Resources.ToolPathFaceSpiral},
+            {FaceToolPath.StrategyType.Contour, Resources.ToolPathFaceContour} 
         };
 
         public event ToolPathChangedEventHandler ToolPathChanged;
@@ -253,8 +254,8 @@ namespace SpaceClaim.AddIn.CAM {
                     new ToolPathStrategyProperty(),
                     new ToolPathColorProperty(),
 
-                    new ToolPathPropertyDisplay(Resources.CuttingToolParameters, Resources.Diameter, (toolPathObj) => toolPathObj.ToolPath.CuttingTool.CuttingHeight, (toolPathObj, value) => toolPathObj.ToolPath.CuttingTool.CuttingHeight = value),
                     new ToolPathPropertyDisplay(Resources.CuttingToolParameters, Resources.CuttingHeight, (toolPathObj) => toolPathObj.ToolPath.CuttingTool.Radius * 2, (toolPathObj, value) => toolPathObj.ToolPath.CuttingTool.Radius = value/2),
+                    new ToolPathPropertyDisplay(Resources.CuttingToolParameters, Resources.Diameter, (toolPathObj) => toolPathObj.ToolPath.CuttingTool.CuttingHeight, (toolPathObj, value) => toolPathObj.ToolPath.CuttingTool.CuttingHeight = value),
               
                     new ToolPathPropertyDisplay(Resources.CuttingParameters, Resources.StepOver, (toolPathObj) => toolPathObj.ToolPath.CuttingParameters.StepOver, (toolPathObj, value) => toolPathObj.ToolPath.CuttingParameters.StepOver = value),
                     new ToolPathPropertyDisplay(Resources.CuttingParameters, Resources.CutDepth, (toolPathObj) => toolPathObj.ToolPath.CuttingParameters.CutDepth, (toolPathObj, value) => toolPathObj.ToolPath.CuttingParameters.CutDepth = value),
@@ -366,7 +367,7 @@ namespace SpaceClaim.AddIn.CAM {
             double val;
             if (!Window.ActiveWindow.Units.Length.TryParse(value, out val))
                 return false;
-            if (!Accuracy.LengthIsPositive(val))
+            if (Accuracy.LengthIsNegative(val))
                 return false;
 
             var iCustomObj = (ICustomObject)obj;

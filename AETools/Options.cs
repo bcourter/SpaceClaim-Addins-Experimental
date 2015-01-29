@@ -37,14 +37,14 @@ namespace SpaceClaim.AddIn.AETools {
             command = Command.GetCommand("PullBlend");
             command.ShortcutMnemonic = default(char);
 
-            command = Command.Create("GoToPullBlend");
-            command.ShortcutMnemonic = 'B';
-            command.Executing += delegate(object sender, CommandExecutingEventArgs e) {
-                Command.Execute("PullTool");
-                Thread.Sleep(100);
-                Command.Execute("PullBlend");
-            };
-            command.Updating += AddInHelper.EnabledCommand_Updating;
+            //command = Command.Create("GoToPullBlend");
+            //command.ShortcutMnemonic = 'B';
+            //command.Executing += delegate(object sender, CommandExecutingEventArgs e) {
+            //    Command.Execute("PullTool");
+            //    Thread.Sleep(100);
+            //    Command.Execute("PullBlend");
+            //};
+            //command.Updating += AddInHelper.EnabledCommand_Updating;
 
             command = Command.Create("DeleteBetter");
             command.Executing += DeleteBetter_Executing;

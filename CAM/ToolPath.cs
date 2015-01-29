@@ -174,6 +174,9 @@ namespace SpaceClaim.AddIn.CAM {
                 case StrategyType.Spiral:
                     return SpiralFacingToolPathFactory.GetCutterLocations(this);
 
+                case StrategyType.Contour:
+                    return ContourFacingToolPathFactory.GetCutterLocations(this);
+
                 default:
                     throw new NotImplementedException();
             }
@@ -219,7 +222,8 @@ namespace SpaceClaim.AddIn.CAM {
 
         public enum StrategyType {
             UV = 0,
-            Spiral = 1
+            Spiral = 1,
+            Contour = 2
         }
     }
 
@@ -231,60 +235,28 @@ namespace SpaceClaim.AddIn.CAM {
             return new ToolEvaluation(surfacePoint + toolPath.CuttingTool.Radius * surfaceNormal, surfacePoint, surfaceNormal);
         }
 
-        private static Point[] GetChainAtVWhere(double v, Func<PointUV, bool> condition, FaceToolPath toolPath) {
-            List<Point> points = new List<Point>();
-
-            double u = toolPath.StartU;
-            while (u <= toolPath.EndU) {
-                PointUV pointUV;
-                if (!toolPath.Surface.TryOffsetParam(PointUV.Create(u, v), DirectionUV.DirU, toolPath.CuttingParameters.Increment, out pointUV))
-                    break;
-
-                u = pointUV.U;
-
-                if (!condition(pointUV))
-                    continue;
-
-                ToolEvaluation eval = Evaluate(pointUV, toolPath);
-                points.Add(eval.CenterPoint);
-            }
-
-            return points.ToArray();
-        }
-
-        private static Point[] GetChainAtV(double v, FaceToolPath toolPath) {
-#if false
-            return GetChainAtV(v, p => true);
-#else
-            return GetChainAtVWhere(v, p => {
-                if (!toolPath.Face.ContainsParam(p))
-                    return false;
-
-                ToolEvaluation eval = Evaluate(p, toolPath);
-                Face[] adjacentFaces = toolPath.Face.Edges
-                    .Where(e => e.Faces.Count == 2 && e.GetAngle() < 0)  // TBD handle surface bodies correctly
-                    .Select(e => toolPath.Face.GetAdjacentFace(e))
-                    .Where(f => f != null)
-                    .ToArray();
-
-                foreach (Face adjacentFace in adjacentFaces) {
-                    if ((eval.CenterPoint - adjacentFace.Geometry.ProjectPoint(eval.CenterPoint).Point).MagnitudeSquared() < Math.Pow(toolPath.CuttingTool.Radius, 2))
-                        return false;
-                }
-
-                return true;
-            }, toolPath);
-#endif
-        }
-
         private static IList<IList<Point>> GetChains(FaceToolPath toolPath) {
             var positions = new List<IList<Point>>();
 
             var points = new List<Point>();
-            int count = Count(toolPath);
+
+            var box = toolPath.Face.GetBoundingBox(Matrix.Identity);
+            var count = box.Size.Z / toolPath.CuttingParameters.StepOver;
+
             for (int i = 0; i < count; i++) {
-                double v = count < 2 ? (toolPath.StartV + toolPath.EndV) / 2 : toolPath.StartV + (double)i / (count - 1) * (toolPath.EndV - toolPath.StartV);
-                points = GetChainAtV(v, toolPath).ToList();
+                var z = i * toolPath.CuttingParameters.StepOver;
+                var plane = Plane.Create(Frame.Create(Point.Create(0, 0, z), Direction.DirZ));
+                var section = toolPath.Face.Geometry.IntersectSurface(plane);
+
+                foreach (var iTrimmedCurve in section.Curves) {
+
+                    for (int j = 0; j < 3; j++) {
+                        foreach (var offsetCurve in iTrimmedCurve.Offset(plane, j * toolPath.CuttingParameters.StepOver))
+                            points.AddRange(iTrimmedCurve.TessellateCurve(toolPath.CuttingParameters.Increment));
+                    }
+
+                }
+
                 if (points.Count < 1)
                     continue;
 
@@ -460,4 +432,96 @@ namespace SpaceClaim.AddIn.CAM {
         }
 
     }
+
+
+    public static class ContourFacingToolPathFactory {
+        private static ToolEvaluation Evaluate(PointUV pointUV, FaceToolPath toolPath) {
+            SurfaceEvaluation eval = toolPath.Surface.Evaluate(pointUV);
+            Point surfacePoint = eval.Point;
+            Direction surfaceNormal = toolPath.IsNormalFlipped ? -eval.Normal : eval.Normal;
+            return new ToolEvaluation(surfacePoint + toolPath.CuttingTool.Radius * surfaceNormal, surfacePoint, surfaceNormal);
+        }
+
+        private static Point[] GetChainAtVWhere(double v, Func<PointUV, bool> condition, FaceToolPath toolPath) {
+            List<Point> points = new List<Point>();
+
+            double u = toolPath.StartU;
+            while (u <= toolPath.EndU) {
+                PointUV pointUV;
+                if (!toolPath.Surface.TryOffsetParam(PointUV.Create(u, v), DirectionUV.DirU, toolPath.CuttingParameters.Increment, out pointUV))
+                    break;
+
+                u = pointUV.U;
+
+                if (!condition(pointUV))
+                    continue;
+
+                ToolEvaluation eval = Evaluate(pointUV, toolPath);
+                points.Add(eval.CenterPoint);
+            }
+
+            return points.ToArray();
+        }
+
+        private static Point[] GetChainAtV(double v, FaceToolPath toolPath) {
+#if false
+            return GetChainAtV(v, p => true);
+#else
+            return GetChainAtVWhere(v, p => {
+                if (!toolPath.Face.ContainsParam(p))
+                    return false;
+
+                ToolEvaluation eval = Evaluate(p, toolPath);
+                Face[] adjacentFaces = toolPath.Face.Edges
+                    .Where(e => e.Faces.Count == 2 && e.GetAngle() < 0)  // TBD handle surface bodies correctly
+                    .Select(e => toolPath.Face.GetAdjacentFace(e))
+                    .Where(f => f != null)
+                    .ToArray();
+
+                foreach (Face adjacentFace in adjacentFaces) {
+                    if ((eval.CenterPoint - adjacentFace.Geometry.ProjectPoint(eval.CenterPoint).Point).MagnitudeSquared() < Math.Pow(toolPath.CuttingTool.Radius, 2))
+                        return false;
+                }
+
+                return true;
+            }, toolPath);
+#endif
+        }
+
+        private static IList<IList<Point>> GetChains(FaceToolPath toolPath) {
+            var positions = new List<IList<Point>>();
+
+            var points = new List<Point>();
+            int count = Count(toolPath);
+            for (int i = 0; i < count; i++) {
+                double v = count < 2 ? (toolPath.StartV + toolPath.EndV) / 2 : toolPath.StartV + (double)i / (count - 1) * (toolPath.EndV - toolPath.StartV);
+                points = GetChainAtV(v, toolPath).ToList();
+                if (points.Count < 1)
+                    continue;
+
+                positions.Add(points);
+            }
+
+            return positions;
+        }
+
+        public static CutterLocation[] GetCutterLocations(FaceToolPath toolPath) {
+            var CutterLocations = new List<CutterLocation>();
+            Vector tip = -toolPath.Csys.DirZ * toolPath.CuttingTool.Radius;
+            foreach (IList<Point> points in GetChains(toolPath)) {
+                //      CutterLocations.Add(new CutterLocation(toolPath.RestPoint(points[0]) + tip, true));
+                CutterLocations.AddRange(points.Select(p => new CutterLocation(p + tip, false)));
+                CutterLocations.Add(new CutterLocation(toolPath.RestPoint(points[points.Count - 1]) + tip, true));
+            }
+
+            return CutterLocations.ToArray();
+        }
+
+        private static int Count(FaceToolPath toolPath) {
+            return (int)Math.Ceiling(toolPath.MaxLength / toolPath.CuttingParameters.StepOver);
+        }
+    }
+
+
+
 }

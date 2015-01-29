@@ -43,6 +43,8 @@ namespace SpaceClaim.AddIn.AETools {
             command.Updating += AddInHelper.EnabledCommand_Updating;
         }
         static void XXX_Executing(object sender, EventArgs eventArgs) {
+            
+        }
 #if false // wrapping
 			Window activeWindow = Window.ActiveWindow;
 			Part part = activeWindow.Scene as Part;
@@ -132,7 +134,7 @@ namespace SpaceClaim.AddIn.AETools {
 			return curvePoints;
 		}
 #endif
-#if true // planar offset
+#if false // planar offset
             const double inches = 25.4 / 1000;
             const double webWidth = (double)3 / 32 * inches;
             const double circuitBoardBandThickness = 0.0005;

@@ -54,7 +54,8 @@ namespace SpaceClaim.AddIn.AETools {
 
              SpaceClaim.Api.V10.Application.AddFileHandler(new CodeVOpenHandler());
 			 SpaceClaim.Api.V10.Application.AddFileHandler(new BezierOpenHandler());
-			 SpaceClaim.Api.V10.Application.AddFileHandler(new X3dFileSaveHandler());
+             SpaceClaim.Api.V10.Application.AddFileHandler(new X3dFileSaveHandler());
+             SpaceClaim.Api.V10.Application.AddFileHandler(new SSLFileSaveHandler());
 		 }
 
 		#endregion

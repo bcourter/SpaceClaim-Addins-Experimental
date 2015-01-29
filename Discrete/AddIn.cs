@@ -55,10 +55,12 @@ namespace SpaceClaim.AddIn.Discrete {
 			new MakeTabsButtonCapsule(container, RibbonButtonCapsule.ButtonSize.small);
 			group.CreateOptionsUI();
 
+            /*
 			group = new RibbonGroupCapsule("Excel", Resources.ExcelGroupText, tab, RibbonCollectionCapsule.LayoutOrientation.vertical);
 			new ExcelResetButtonCapsule(group, RibbonButtonCapsule.ButtonSize.small);
 			new ExcelLengthButtonCapsule(group, RibbonButtonCapsule.ButtonSize.small);
 			new ExcelAngleButtonCapsule(group, RibbonButtonCapsule.ButtonSize.small);
+*/
 
 			tab = new RibbonTabCapsule("Discrete", Resources.DiscreteTabText, ribbonRoot);
 			group = new RibbonGroupCapsule("Procedural", Resources.ProceduralGroupText, tab, RibbonCollectionCapsule.LayoutOrientation.horizontal);

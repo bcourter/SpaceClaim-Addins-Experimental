@@ -268,4 +268,7 @@
   <data name="FaceToolPath" xml:space="preserve">
     <value>Face Tool Path</value>
   </data>
+  <data name="ToolPathFaceContour" xml:space="preserve">
+    <value>XY Contour</value>
+  </data>
 </root>
